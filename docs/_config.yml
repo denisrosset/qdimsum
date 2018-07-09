@@ -1,1 +1,5 @@
 theme: jekyll-theme-minimal
+title: QDimSum
+description: Symmetric SDP relaxations for qudits systems
+logo: logo.png
+show_downloads: true
