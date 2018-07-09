@@ -1,0 +1,283 @@
+function objMax = nvOptimize(problem, monomials, method, settings, basis, repStructure)
+% NVOPTIMIZE Implementation of the Navascues-Vertesi hierarchy
+%
+%
+% problem              - Problem description of class NVProblem, with relevant method implemented
+%                        as described below
+%
+% monomials            - List of monomial basis indices, or {'npa', level}, or {'families' family1 family2 ...}
+%                        see Monomials.npa/families
+%
+% method               - The symmetry method used (or lack thereof). Can take one of the values:
+%
+%                        'none':        Do not symmetrize
+%                        'reynolds':    Average the samples without block-diagonalization.
+%                        'isotypic':    Average the samples, then block-diagonalize into isotypic components.
+%                        'irreps':      Average the samples, then fully block-diagonalize.
+%                        'blocks':      Sample in the block-diagonal basis explicitly
+%                                       If any of the 'changeOfBasis' or 'representations' parameters is missing,
+%                                       the change of basis is computed numerically.
+%                        'fastest':     Equivalent to 'blocks'
+%
+%                        These functions require certain methods to be available on the given problem.
+%                        
+%                        'averageOnly', 'isotypic', 'full' require 'problem.groupDecomposition'
+%                        'blocks' needs 'problem.groupDecomposition' if changeOfBasis+representations are not provided
+%
+% basis                - Optional explicit change of basis matrix provided by the user
+%
+% repStructure         - Let nR be the number of inequivalent irreducible representations present in the
+%                        representation induced by the action of the group on the provided monomial basis.
+%
+%                        Let permutationMatrix(g) be the (generalized) permutation matrix corresponding to the action
+%                        of a group element g.
+%
+%                        repStructure is either:
+%
+%                        - a 1xnR vector providing the size of the isotypic components, such that
+%                          basis' * permutationMatrix(g) * basis is block-diagonal with blocks of size
+%                          given by "repStructure"
+%
+%                        - a 2xnR integer matrix, where 
+%                             - repStructure(1,i) is the dimension of the representation and
+%                             - repStructure(2,i) its multiplicity.
+%
+%                          Then "basis" has to be the change of basis such that basis' * permutationMatrix(g) * basis 
+%                          is block-diagonal, with blocks of type kron(eye(d), actionInRep_i(g))
+%
+%                          Note that the moment matrix is NOT block diagonal in that basis, rather has blocks
+%                          corresponding to kron(B, eye(d)), where B is a m x m matrix (m is the multiplicity) and
+%                          d is the representation dimension.
+
+    if isequal(method, 'fastest')
+        method = 'blocks';
+    end
+    
+    if isequal(monomials{1}, 'npa')
+        level = monomials{2};
+        settings.log(sprintf('Computing monomials for NPA level %d', level));
+        monomials = Monomials.npa(problem, level, settings);
+    elseif isequal(monomials{1}, 'families')
+        families = monomials(2:end);
+        familiesStr = cellfun(@(f) ['[' num2str(f) '],'], families, 'UniformOutput', false);
+        familiesStr = strcat(familiesStr{:});
+        familiesStr = familiesStr(1:end-1);
+        settings.log(['Computing monomials for families ' familiesStr]);
+        monomials = Monomials.families(problem, families, settings);
+    end
+    
+    nMonomials = length(monomials);
+    settings.log(sprintf('Working with %d monomials', nMonomials));
+    
+    UB_NONE = 0;
+    UB_ISOTYPIC = 1;
+    UB_IRREDUCIBLE = 2;
+    userBasis = UB_NONE; % 0: none, 1: isotypic, 2: irreducible
+    if nargin == 6
+        switch size(repStructure, 1)
+          case 1
+            userBasis = UB_ISOTYPIC;
+          case 2
+            userBasis = UB_IRREDUCIBLE;
+          otherwise
+            error('Wrong format for repStructure');
+        end
+    end
+    
+    % compute prerequisities
+    switch method
+      case 'none'
+        needsGroupDecomposition = false;
+        needsBasis = UB_NONE;
+      case 'reynolds'
+        needsGroupDecomposition = true;
+        needsBasis = UB_NONE;
+      case 'isotypic'
+        needsGroupDecomposition = true;
+        needsBasis = UB_ISOTYPIC;
+      case 'irreps'
+        needsGroupDecomposition = true;
+        needsBasis = UB_IRREDUCIBLE;
+      case 'blocks'
+        needsBasis = UB_IRREDUCIBLE;
+        needsGroupDecomposition = (userBasis ~= UB_IRREDUCIBLE);
+    end
+
+    if needsGroupDecomposition
+        if isequal(problem.groupDecomposition, 'Not implemented')
+            error('Please implement the method groupDecomposition in your problem.');
+        end
+        monoAction = Monomials.actionDecomposition(problem, monomials, settings);
+    end
+
+    if userBasis < needsBasis
+        switch needsBasis
+          case UB_ISOTYPIC
+            settings.log('Computing isotypic decomposition...');
+            [basis reps] = Reps.isotypicComponents(monoAction, settings);
+            repStructure = reps(1,:).*reps(2,:);
+          case UB_IRREDUCIBLE
+            settings.log('Computing irreducible decomposition...');
+            [basis repStructure] = Reps.irreducibleDecomposition(monoAction, settings);
+        end
+    end
+
+    if needsBasis > UB_NONE
+        switch size(repStructure, 1)
+          case 1
+            settings.log(['Found isotypic components of size ' num2str(repStructure)]);
+            blockSizes = repStructure;
+            nRepresentations = length(blockSizes);
+            sampleDim = sum(arrayfun(@(x) x*(x+1)/2, blockSizes));
+          case 2
+            dim = repStructure(1, :);
+            mult = repStructure(2, :);
+            settings.log('Found representations of dimensions')
+            settings.log(num2str(dim))
+            settings.log('and multiplicities')
+            settings.log(num2str(mult));
+            blockSizes = mult;
+            nRepresentations = length(blockSizes);
+            sampleDim = sum(arrayfun(@(x) x*(x+1)/2, blockSizes));
+            % reorder elements so that the moment matrix is fully block-diagonal
+            shift = 0;
+            for i = 1:nRepresentations
+                repSize = dim(i) * mult(i);
+                trs = reshape(1:repSize, [dim(i) mult(i)])';
+                trs = trs(:);
+                range = shift + (1:repSize);
+                basis(:, range) = basis(:, range(trs));
+                shift = shift + repSize;
+            end
+        end
+    else
+        blockSizes = nMonomials;
+        sampleDim = nMonomials*(nMonomials+1)/2;
+    end
+    blockRanges = cell(1, length(blockSizes));
+    shift = 0;
+    for i = 1:length(blockSizes)
+        blockRanges{i} = shift + (1:blockSizes(i));
+        shift = shift + blockSizes(i);
+    end
+    blockStructure = BlockStructure(blockRanges);
+    
+    settings.log('Computing samples');
+    samples = zeros(sampleDim, 0);
+    objContribs = zeros(1, 0);
+    l = 0;
+    while 1
+        samples = [samples zeros(sampleDim, settings.sampleChunkSize)];
+        for i = 1:settings.sampleChunkSize
+            X = problem.sampleOperators;
+            K = problem.sampleStateKraus;
+            stateDim = size(K, 1);
+            krausRank = size(K, 2);
+            % compute monomials
+            monos = zeros(stateDim, krausRank, nMonomials);
+            for j = 1:nMonomials
+                mono = K;
+                indices = monomials{j};
+                for k = length(indices):-1:1
+                    mono = X{indices(k)} * mono;
+                end
+                monos(:,:,j) = mono;
+            end
+            blocks = {};
+            if isequal(method, 'blocks')
+                % performs monomial change of basis
+                monos = reshape(monos, [stateDim*krausRank nMonomials]) * basis;
+                shift = 0;
+                for i = 1:nRepresentations
+                    block = zeros(mult(i), mult(i));
+                    for j = 1:dim(i)
+                        range = shift + (1:mult(i));
+                        block = block + monos(:,range)'*monos(:,range);
+                        shift = shift + mult(i);
+                    end
+                    block = (block + block')/(2*dim(i));
+                    if problem.forceReal
+                        block = real(block);
+                    end
+
+                    blocks = horzcat(blocks, {block});
+                end
+            else
+                monos = reshape(monos, [stateDim*krausRank nMonomials]);
+                chi = monos'*monos; % compute moment matrix
+                if problem.forceReal
+                    chi = real(chi);
+                end
+                if ~isequal(method, 'none')
+                    chi = GenPerm.symmetrize(chi, monoAction);
+                end
+                switch method
+                  case {'none', 'reynolds'}
+                    chi = (chi + chi')/2; % to cater for possible rounding errors
+                    blocks = {chi};
+                  case 'isotypic'
+                    chi = basis'*chi*basis;
+                    chi = (chi + chi')/2;
+                    shift = 0;
+                    for i = 1:nRepresentations
+                        range = shift + (1:repStructure(i));
+                        blocks = horzcat(blocks, {chi(range, range)});
+                        shift = shift + repStructure(i);
+                    end
+                  case 'irreps'
+                    chi = basis'*chi*basis;
+                    shift = 0;
+                    for i = 1:nRepresentations
+                        block = zeros(mult(i), mult(i));
+                        for j = 1:dim(i)
+                            range = shift + (1:mult(i));
+                            block = block + chi(range, range);
+                            shift = shift + mult(i);
+                        end
+                        block = (block + block')/(2*dim(i));
+                        blocks = horzcat(blocks, {block});
+                    end
+                end
+            end
+            sample = cellfun(@(b) BlockStructure.matToVec(b), blocks, 'UniformOutput', false);
+            l = l + 1;
+            samples(:,l) = horzcat(sample{:});
+            objContribs(l) = problem.computeObjective(X, K);
+        end
+        r = rank(samples);
+        if r < l
+            break
+        end
+    end
+    settings.log(['Total of ' num2str(r) ' samples']);
+    settings.log('Formulating optimization problem');
+    if r == 1
+        settings.log('Only one sample, not running semidefinite solver');
+        objMax = objContribs(1);
+        % chi = blockStructure.unpack(samples(:,1));
+        % TODO reconstruct chi for potential output
+    else
+        Cons = [];
+        x = sdpvar(r-1, 1);
+        objMax = objContribs(1);
+        objMax = objMax + (objContribs(2:r) - objContribs(1)) * x;
+        for i = 1:blockStructure.numBlocks
+            vecRange = blockStructure.blockRange(i);
+            n = blockStructure.blockSize(i);
+            C = BlockStructure.vecToMat(samples(vecRange,1), n);
+            A = zeros(n, n, r - 1);
+            for j = 1:r-1
+                sample = samples(vecRange, j+1) - samples(vecRange, 1);
+                A(:,:,j) = BlockStructure.vecToMat(sample, n);
+            end
+            block = C + reshape(reshape(A, n*n, r - 1) * x, n, n);
+            Cons = [Cons
+                    block >= 0];
+        end
+        settings.log('Starting optimization');
+        res = solvesdp(Cons, -objMax, settings.yalmipSettings);
+        objMax = double(objMax);
+        % TODO reconstruct chi for potential output
+    end
+    
+end
