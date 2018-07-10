@@ -8,7 +8,8 @@ classdef Reps
             n = size(groupDecomposition{1}, 2);
             backIndex = zeros(n, 1);
             backIndex(orbit) = 1:length(orbit);
-            gdfo = cellfun(@(groupElements) backIndex(groupElements(:, orbit)), groupDecomposition, 'UniformOutput', false);
+            computeBackIndex = @(el) sign(el).*backIndex(abs(el));
+            gdfo = cellfun(@(groupElements) computeBackIndex(groupElements(:, orbit)), groupDecomposition, 'UniformOutput', false);
         end
         
         function [U reps] = irreducibleDecomposition(groupDecomposition, settings)
