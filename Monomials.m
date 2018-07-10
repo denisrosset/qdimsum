@@ -11,8 +11,8 @@ classdef Monomials
        % NPA - a generator for a monomial basis that enumerates all products of bounded degree
        %
        % The maximal degree enumerated is given by "level", and the function removes duplicates.
-
-           nOp = problem.numOperatorVariables;
+           X = problem.sampleOperators;
+           nOp = length(X);
            if level == 0
                indices = {[]};
            elseif level == 1
