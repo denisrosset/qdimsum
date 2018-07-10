@@ -5,63 +5,26 @@ classdef RAC22 < NVProblem
     end
     
     methods
-        
-        function C = operatorSDPConstraints(self, X)
-            C = X; % all operators are SDP
-        end
-        
-        function C = operatorEqualityConstraints(self, X)
-            dim = 2;
-            C = {eye(dim) - X{5} - X{6}
-                 eye(dim) - X{7} - X{8}};
-        end
-        
-        function C = scalarEqualityConstraints(self, X)
-            dim = 2;
-            mm = eye(dim)/dim;
-            C = {mm - X{1}
-                 mm - X{2}
-                 mm - X{3}
-                 mm - X{4}};
-        end
-        
+                
         function X = sampleOperators(self, rank)
+        % the first 4 operators are the states
+        % the next 2 represent a projective measurement
+        % the last 2 represent another projective measurement
             dim = 2;
-            rho = cell(2, 2);
-            for x1 = 1:2
-                for x2 = 1:2
-                rho{x1,x2} = qdimsum.Random.pureNormalizedDensityMatrix(dim);
-                end
+            X = cell(1, 8);
+            for i = 1:4
+                X{i} = qdimsum.Random.pureNormalizedDensityMatrix(dim);
             end
-            M = cell(2, 2); % M(b,y)
-            for y = 1:2
-                U = qdimsum.Random.unitary(2);
-                M{1,y} = U*[1 0; 0 0]*U';
-                M{2,y} = U*[0 0; 0 1]*U';
-            end
-            X = self.pack(rho, M);
+            U = qdimsum.Random.unitary(2);
+            X{5} = U*[1 0; 0 0]*U';
+            X{6} = U*[0 0; 0 1]*U';
+            U = qdimsum.Random.unitary(2);
+            X{7} = U*[1 0; 0 0]*U';
+            X{8} = U*[0 0; 0 1]*U';
         end
         
         function types = operatorTypes(self)
             types = {1:4 5:8};
-        end
-        
-        function X = pack(self, rho, M)
-            X = {rho{1,1} rho{2,1} rho{1,2} rho{2,2} ...
-                 M{1,1} M{2,1} M{1,2} M{2,2}};            
-        end
-        
-        function [rho M] = unpack(self, X)
-            rho = cell(2, 2);
-            M = cell(2, 2);
-            rho{1,1} = X{1};
-            rho{2,1} = X{2};
-            rho{1,2} = X{3};
-            rho{2,2} = X{4};
-            M{1,1} = X{5};
-            M{2,1} = X{6};
-            M{1,2} = X{7};
-            M{2,2} = X{8};
         end
         
         function K = sampleStateKraus(self)
@@ -69,8 +32,7 @@ classdef RAC22 < NVProblem
             K = eye(dim);
         end
         
-        function obj = computeObjective(self, X, tau)
-            [rho M] = self.unpack(X);
+        function obj = computeObjective(self, X, K)
             obj = 0;
             for x1 = 1:2
                 for x2 = 1:2
@@ -80,7 +42,9 @@ classdef RAC22 < NVProblem
                         else
                             b = x2;
                         end
-                        obj = obj + trace(tau * rho{x1,x2} * M{b,y});
+                        rho = X{x1+(x2-1)*2};
+                        M = X{4+b+(y-1)*2};
+                        obj = obj + trace(M * rho); % K is always identity
                     end
                 end
             end
@@ -102,4 +66,28 @@ classdef RAC22 < NVProblem
         end
         
     end
+    
+    methods
+        
+        function C = operatorSDPConstraints(self, X)
+            C = X; % all operators are SDP
+        end
+        
+        function C = operatorEqualityConstraints(self, X)
+            dim = 2;
+            C = {eye(dim) - X{5} - X{6}   % X{5}, X{6} form a projective measurement
+                 eye(dim) - X{7} - X{8}}; % X{7}, X{8} form a projective measurement
+        end
+        
+        function C = scalarEqualityConstraints(self, X)
+            dim = 2;
+            mm = eye(dim)/dim;
+            C = {mm - X{1}
+                 mm - X{2}
+                 mm - X{3}
+                 mm - X{4}};
+        end
+
+    end
+    
 end

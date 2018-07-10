@@ -36,6 +36,7 @@ classdef Node < qdimsum.Chain
         end
         
         function r = random_(self, acc)
+            import qdimsum.*
             r = self.next.random_(GenPerm.compose(acc, self.randomU));
         end
         
@@ -49,6 +50,7 @@ classdef Node < qdimsum.Chain
         end
        
         function s = sift(self, remaining)
+            import qdimsum.*
             b = GenPerm.image(remaining, self.beta);
             i = self.orbitIndex(b);
             if i == 0

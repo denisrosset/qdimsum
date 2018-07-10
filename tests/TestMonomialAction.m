@@ -5,11 +5,12 @@ d = 5;
 problem = CGLMP(d);
 families = {[] [1] [2] [1 2] [2 2]};
 monos = Monomials.families(problem, families, settings);
-ochain = Chain.schreierSims(problem.symmetryGroupGenerators).groupDecomposition;
-mchain = Monomials.actionDecomposition(problem, ochain, monos, settings);
+chain = Chain.schreierSims(problem.symmetryGroupGenerators);
+odec = chain.groupDecomposition;
+mdec = Monomials.actionDecomposition(problem, odec, monos, settings);
 nMonos = length(monos);
-x = GenPerm.randomInDecomposition(ochain);
-y = GenPerm.randomInDecomposition(ochain);
+x = chain.random;
+y = chain.random;
 z = GenPerm.compose(x, y);
 
 xm = Monomials.findMonomialAction(problem, monos, x, settings);

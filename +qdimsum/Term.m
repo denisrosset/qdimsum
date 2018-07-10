@@ -11,7 +11,7 @@ classdef Term < qdimsum.Chain
        end
        
        function r = random_(self, acc)
-           acc;
+           r = acc;
        end
        
        function o = order_(self, acc)
