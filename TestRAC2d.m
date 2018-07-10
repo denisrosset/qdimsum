@@ -1,5 +1,5 @@
 settings = NVSettings('yalmipSettings', sdpsettings('solver', 'mosek', 'verbose', 0), ...
-                      'verbosityLevel', 0);
+                      'verbosityLevel', 1);
 tolerance = 1e-6;
 monomials = {'families' [] [1] [2] [1 2]};
 for d = 2:5

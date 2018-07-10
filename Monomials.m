@@ -76,15 +76,14 @@ classdef Monomials
            monos = cellfun(@(I) Monomials.computeFromIndices(X, I), monomials, 'UniformOutput', false);
        end
        
-       function monoChain = actionDecomposition(problem, monomials, settings)
-           chain = problem.groupDecomposition;
-           C = length(chain);
+       function monoChain = actionDecomposition(problem, groupDecomposition, monomials, settings)
+           C = length(groupDecomposition);
            N = length(monomials);
            monoChain = cell(1, C);
            X = problem.sampleOperators; % verify that the computation goes in the right order
            monoX = Monomials.computeMonomials(X, monomials);
            for i = 1:C
-               c = chain{i};
+               c = groupDecomposition{i};
                E = size(c, 1);
                mc = zeros(E, N);
                for j = 1:E

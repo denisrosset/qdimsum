@@ -104,10 +104,8 @@ function objMax = nvOptimize(problem, monomials, method, settings, basis, repStr
     end
 
     if needsGroupDecomposition
-        if isequal(problem.groupDecomposition, 'Not implemented')
-            error('Please implement the method groupDecomposition in your problem.');
-        end
-        monoAction = Monomials.actionDecomposition(problem, monomials, settings);
+        gd = problem.symmetryGroupDecomposition;
+        monoAction = Monomials.actionDecomposition(problem, gd, monomials, settings);
     end
 
     if userBasis < needsBasis

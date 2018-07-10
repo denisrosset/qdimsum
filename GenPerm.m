@@ -58,31 +58,54 @@ classdef GenPerm
             end
         end
 
-        function zeta = matrixImage(mon, chi)
+        function zeta = matrixImage(gp, chi)
             d = size(chi, 1);
             zeta = chi;
-            minusSign = find(mon < 0);
+            minusSign = find(gp < 0);
             if length(minusSign) > 0
                 zeta(minusSign, :) = -zeta(minusSign, :);
                 zeta(:, minusSign) = -zeta(:, minusSign);
             end
-            zeta(abs(mon), abs(mon)) = zeta;
+            zeta(abs(gp), abs(gp)) = zeta;
         end
                 
-        function Y = operatorsImage(mon, X)
-            assert(length(mon) == length(X));
+        function Y = operatorsImage(gp, X)
+            assert(length(gp) == length(X));
             n = length(X);
             Y = cell(1, n);
             for i = 1:n
-                j = GenPerm.image(mon, i);
+                j = GenPerm.image(gp, i);
                 Y{abs(j)} = sign(j) * X{i};
             end
         end
         
-        function j = image(mon, i)
+        function j = image(gp, i)
             s = sign(i);
             absI = abs(i);
-            j = mon(absI) * s;
+            j = gp(absI) * s;
+        end
+        
+        function j = findMovedPoint(gp)
+        % Returns a point ( > 0 ) moved by the 
+            j = 0;
+            for i = 1:length(gp)
+                if i ~= gp(i)
+                    j = i;
+                    return
+                end
+            end
+        end
+        
+        function p = fromCycles(n, varargin)
+            p = 1:n;
+            for i = length(varargin):-1:1
+                cycle = varargin{i};
+                % cycle 2 3 1 means that 2 -> 3, 3 -> 1, 1 -> 2
+                cycleImage = [cycle(2:end) cycle(1)];
+                newEl = 1:n;
+                newEl(cycle) = cycleImage;
+                p = GenPerm.compose(newEl, p);
+            end
         end
         
         function z = compose(x, y)

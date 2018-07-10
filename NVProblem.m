@@ -2,15 +2,19 @@
 % on sampling feasible moment matrices
 classdef (Abstract) NVProblem < handle
 
-    properties(Abstract) % Configuration
-        forceReal; % Whether to use only the real part of the sampled moment matrix
-                   % If the objective is real, this can safely be set to true
+    properties
+        cacheNumOperators = [];  % Number of operators, computed by taking a single sample
     end
     
-    methods (Abstract) % Problem definition
+    properties(Abstract) % Configuration
         
-        % All these methods need to be implemented
-
+        forceReal;  % Whether to use only the real part of the sampled moment matrix
+                    % If the objective is real, this can safely be set to true
+        
+    end
+    
+    methods (Abstract) % Problem definition: methods MUST BE implemented
+        
         % Returns a 1xI cell array of operators representing a typical sample of
         % the feasible matrix realizations of those operators
         X = sampleOperators(self)
@@ -28,97 +32,40 @@ classdef (Abstract) NVProblem < handle
 
     end
     
-    methods
-                
-        % Returns the chain of cosets representatives able to describe
-        % any element in the group[
+    methods % Generators of the symmetry/ambient group (required only for symmetrized optimization)
+        
+        % Returns the generators of the symmetry group of the problem
         %
-        % chain is a 1xC cell array, where the i-th cell element is
-        % a E(i) x n matrix, whose first row is the identity Mon
-        % and E(i) is the number of representatives in the i-th cell
-        %
-        % n is the size of the mon, i.e. the number of operator variables
-        %
-        % All group elements are written as the composition of a single row
-        % from each cell, i.e.
+        % All elements {g} in the symmetry group must satisfy two conditions
         % 
-        % g = chain{1}(i1,:) o chain{2}(i2,:) o chain{3}(i3,:) ...
-        % for all combinations of indices (i1,i2,i3, ...) 
+        % - if X is a valid sample, then g(X) must be a valid sample as well
+        % - the objective must be invariant under g: objective(X, K) == objective(g(x), K)
         %
-        % Note: this function will be called several times by the
-        % optimization framework, so if the result is expensive,
-        % it should be cached for reuse.
-        function chain = groupDecomposition(self)
-            chain = 'Not implemented';
+        % Generators are given in a nG x nOp matrix, where each row is a
+        % generalized permutation acting on the operator variables.
+        %
+        % nG is the number of generators, and nOp the number of operators
+        % as returns by "sampleOperators"
+        %
+        % If the symmetry group is trivial, set generators to the identity element
+        function generators = symmetryGroupGenerators(self)
+            generators = 1:self.numOperators;
+        end
+        
+        % Returns the generators of the ambient group of the problem
+        %
+        % All elements {g} of the ambient group must leave the feasible set
+        % invariant (i.e. if X is a valid sample, then g(X) is a valid sample).
+        %
+        % The format of the matrix providing those generators is the same as
+        % for "symmetryGroupGenerators" above.
+        function generators = ambientGroupGenerators(self)
+            generators = 1:self.numOperators;
         end
         
     end
     
-    methods
-        
-        function tau = sampleState(self)
-            K = self.sampleStateKraus;
-            tau = K*K';
-            tau = (tau + tau')/2;
-        end
-        
-        function types = operatorTypes(self)
-            types = 'Not implemented';
-        end
-                
-        function chi = computeMomentMatrixForIndices(self, X, tau, indices)
-            monos = cellfun(@(I) Monomials.computeFromIndices(X, I), indices, 'UniformOutput', false);
-            N = length(monos);
-            d = size(tau, 1);
-            % special case: tau is the identity
-            % TODO: accept scalar multiples of identity as well
-            if isequal(tau, eye(d))
-                % conj(S) = (mono').'
-                
-                colMonos = zeros(d*d, N);
-                for i = 1:N
-                    mono = monos{i};
-                    colMonos(:, i) = mono(:);
-                end
-                chi = zeros(N, N);
-                for j = 1:N
-                    chi(j,j:N) = colMonos(:,j)'*colMonos(:,j:N);
-                    chi(j+1:N,j) = conj(chi(j,j+1:N));
-                end
-            else
-                for j = 1:N
-                    for k = 1:N
-                        chi(j,k) = trace(monos{j}'*monos{k}*tau);
-                    end
-                end
-            end
-            if self.forceReal
-                chi = real(chi);
-            end
-            % force Hermitian/symmetric if rounding errors etc...
-            chi = (chi + chi')/2;
-        end
-        
-        % Compute a single sample for the given problem
-        function [chi objContrib] = sample(self)
-            N = self.numMonomials;
-            X = self.sampleOperators;
-            tau = self.sampleState;
-            chi = self.computeMomentMatrix(X, tau);
-            objContrib = self.computeObjective(X, tau);            
-        end
-
-        % Compute a single sample for the given problem
-        function [chi objContrib] = sampleForIndices(self, indices)
-            X = self.sampleOperators;
-            tau = self.sampleState;
-            chi = self.computeMomentMatrixForIndices(X, tau, indices);
-            objContrib = self.computeObjective(X, tau);            
-        end
-
-    end
-
-    methods % Constraint definitions
+    methods % Constraint definitions, OPTIONAL
         
         % These methods do not need to be implemented, they are only
         % useful to check the well-behavedness of the user implementation
@@ -154,6 +101,41 @@ classdef (Abstract) NVProblem < handle
         function C = scalarEqualityConstraints(self, X)
             C = {};
         end
+        
+    end
+    
+    
+    methods
+        
+        function tau = sampleState(self)
+            K = self.sampleStateKraus;
+            tau = K*K';
+            tau = (tau + tau')/2;
+        end
+        
+        function types = operatorTypes(self)
+            types = {1:self.numOperators};
+        end
+        
+        function n = numOperators(self)
+            if isequal(self.cacheNumOperators, [])
+                self.cacheNumOperators = length(self.sampleOperators);
+            end
+            n = self.cacheNumOperators;
+        end
+        
+        function chain = symmetryGroupChain(self)
+            chain = Chain.schreierSims(self.symmetryGroupGenerators);
+        end
+        
+        function gd = symmetryGroupDecomposition(self)
+            gd = self.symmetryGroupChain.groupDecomposition;
+        end
+        
+        function chain = ambientGroupChain(self)
+            chain = Chain.schreierSims(self.ambientGroupGenerators);
+        end
+
     end
    
 end

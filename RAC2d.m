@@ -119,57 +119,23 @@ classdef RAC2d < NVProblem
             p=[rho M];
         end
         
-        function p = permutationX2(self, sigma)
-            d = self.d;
-            rho=reshape(1:d^2,[d d]);
-            M=reshape(1:2*d,[d 2]);
-            rho=reshape(rho(:,sigma),[1 d^2]);
-            M(:,2)=M(sigma,2);
-            M=reshape(M,[1 2*d])+d^2;
-            p=[rho M];    
-        end
-        
-        function chain = groupDecomposition(self)
+        function generators = symmetryGroupGenerators(self)
             d = self.d;
             id = 1:d^2+2*d;
             
-            swapX1X2=reshape(reshape(1:d^2, [d d])', d^2, 1)';
-            Mv=reshape(1:2*d, [d 2]);
-            M(:,1)=Mv(:,2);
-            M(:,2)=Mv(:,1);
+            swapX1X2 = reshape(reshape(1:d^2, [d d])', d^2, 1)';
+            Mv = reshape(1:2*d, [d 2]);
+            M(:,1) = Mv(:,2);
+            M(:,2) = Mv(:,1);
             
-            swapX1X2=[swapX1X2 reshape(M,[1 2*d])+d^2];         
-            swapX1X2;
+            swapX1X2 = [swapX1X2 reshape(M,[1 2*d])+d^2];         
             
-            flipX1={};        
-            for PermOrder=2:d    
-                dummy=[];        
-                permlist=toeplitz([1 PermOrder:-1:2], 1:PermOrder);
-                for PermutationIndex=1:length(permlist)
-                    sigma=permlist(PermutationIndex,:);
-                    sigma=[sigma [PermOrder+1:d]];
-                    p=self.permutationX1(sigma);
-                    dummy=[dummy; p];
-                end
-                flipX1 = {flipX1{:} dummy};
-                dummy;
-            end
-
-            flipX2={};        
-            for PermOrder=2:d    
-                dummy=[];        
-                permlist=toeplitz([1 PermOrder:-1:2], 1:PermOrder);
-                for PermutationIndex=1:length(permlist)
-                    sigma=permlist(PermutationIndex,:);
-                    sigma=[sigma [PermOrder+1:d]];
-                    p=self.permutationX2(sigma);
-                    dummy=[dummy; p];
-                end
-                flipX2 = {flipX2{:} dummy};
-                dummy;
-            end
+            cyclicX1 = self.permutationX1([2:d 1]);
+            swapX1 = self.permutationX1([2 1 3:d]);
             
-            chain = {[id; swapX1X2] flipX1{:} flipX2{:}};
+            generators = [swapX1X2
+                          cyclicX1
+                          swapX1];
         end
         
     end

@@ -87,12 +87,11 @@ classdef RAC22 < NVProblem
             obj = real(obj / 8);
         end
         
-        function chain = groupDecomposition(self)
+        function generators = symmetryGroupGenerators(self)
             swapX1X2 = [1 3 2 4 7 8 5 6];
             flipX1 = [2 1 4 3 6 5 7 8];
-            flipX2 = [3 4 1 2 5 6 8 7];
-            id = 1:8;
-            chain = {[id; swapX1X2] [id; flipX1] [id; flipX2]};
+            generators = [swapX1X2
+                          flipX1];
         end
         
     end

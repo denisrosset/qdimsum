@@ -119,15 +119,10 @@ classdef CGLMP < NVProblem
             p = [d:-1:1 d+cycle 4*d:-1:2*d+1];
         end
         
-        function chain = groupDecomposition(self)
-            d = self.d;
-            id = 1:4*d;
-            el1 = self.cyclicPermutations;
-            el2 = [id
-                   self.mirrorPermutation1];
-            el3 = [id
-                   self.mirrorPermutation2];
-            chain = {el3 el2 el1};
+        function generators = symmetryGroupGenerators(self)
+            generators = [self.cyclicPermutations
+                          self.mirrorPermutation1
+                          self.mirrorPermutation2];
         end
     
     end
