@@ -14,8 +14,14 @@ classdef NVSettings < handle & matlab.mixin.SetGet
         numSamplesChecks = 10;  % number of samples to use in random checks
         verbosityLevel = 1;     % Level of display output
                                 % 0 - disable
-                                % 1 - high level information only
+                                % 1 - warnings and high level information only
                                 % 2 - detailed output
+                                %
+                                % Settings used in randomized checks
+                                % ==================================
+                                %
+        checksEigTol = 1e-9;    % Tolerance for eigenvalues of SDP constraints
+        checksTol = 1e-12;      % Tolerance for linear equality constraints
                                 %
                                 % Settings for monomial samples comparison
                                 % ========================================
@@ -24,7 +30,13 @@ classdef NVSettings < handle & matlab.mixin.SetGet
                                 % and to discover the action of the symmetry group on monomials
                                 %
         monomialTol = 1e-12;    % tolerance used to check for duplicates among monomials
-        monomialHist = [];      % histogram of magnitudes below  tolerance
+        monomialHist = [];      % histogram of differences below tolerance
+                                %
+                                % Settings for symmetry group discovery
+                                % =====================================
+                                %
+        findSymTol = 1e-12;     % tolerance used to check for invariant objective value
+        findSymHist = [];       % histogram of differences below tolerance
                                 %
                                 % Settings for numerical block diagonalization
                                 % ============================================
@@ -35,7 +47,7 @@ classdef NVSettings < handle & matlab.mixin.SetGet
         blockDiagEigTol = 1e-9; % tolerance used to compare eigenvalues
         blockDiagEigHist = [];  % histogram of eigenvalue magnitudes below tolerance
         blockDiagMatTol = 1e-9; % tolerance used to compare singular values of blocks to discover structure
-        blockDiagMatHist = [];  % histogram of element magnitudes below tolerance        
+        blockDiagMatHist = [];  % histogram of element magnitudes below tolerance
     end
 
     methods
@@ -137,10 +149,12 @@ classdef NVSettings < handle & matlab.mixin.SetGet
         end
         
         function settings = withHistograms(varargin)
+            import qdimsum.*                        
             settings = NVSettings(varargin{:});
             settings.monomialHist = ToleranceHistogram('monomialHist: monomial comparison');
             settings.blockDiagEigHist = ToleranceHistogram('blockDiagEigHist: block diagonalization eigenvalues');
             settings.blockDiagMatHist = ToleranceHistogram('blockDiagMatHist: block diagonalization matrix coefficients');
+            settings.findSymHist = ToleranceHistogram('findSymHist: invariance of objective value under symmetry');
         end
     
     end

@@ -1,4 +1,4 @@
-classdef Term < Chain
+classdef Term < qdimsum.Chain
     
    methods
        

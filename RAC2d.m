@@ -28,7 +28,7 @@ classdef RAC2d < NVProblem
             end
             M = cell(d, 2); % M(b,y)
             for y = 1:2
-                U = Random.unitary(d);
+                U = qdimsum.Random.unitary(d);
                 for b=1:d
                     M{b,y} = U*diag(full(sparse(1,b,1,1,d)))*U';
                 end

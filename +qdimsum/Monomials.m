@@ -11,6 +11,7 @@ classdef Monomials
        % NPA - a generator for a monomial basis that enumerates all products of bounded degree
        %
        % The maximal degree enumerated is given by "level", and the function removes duplicates.
+           import qdimsum.*
            X = problem.sampleOperators;
            nOp = length(X);
            if level == 0
@@ -46,6 +47,7 @@ classdef Monomials
        %
        % families  - Families of operators involved
        %             For example, the families AA AB BB would be written {[1 1] [1 2] [2 2]}
+           import qdimsum.*
            indices = {};
            for i = 1:length(families)
                newIndices = Monomials.indicesFromFamily(problem, families{i}, settings);
@@ -73,10 +75,12 @@ classdef Monomials
        end
        
        function monos = computeMonomials(X, monomials)
+           import qdimsum.*
            monos = cellfun(@(I) Monomials.computeFromIndices(X, I), monomials, 'UniformOutput', false);
        end
        
        function monoChain = actionDecomposition(problem, groupDecomposition, monomials, settings)
+           import qdimsum.*
            C = length(groupDecomposition);
            N = length(monomials);
            monoChain = cell(1, C);
@@ -96,6 +100,7 @@ classdef Monomials
        end
        
        function monoGenPerm = findMonomialAction(problem, monomials, opGenPerm, settings)
+           import qdimsum.*
            X = problem.sampleOperators; % verify that the computation goes in the right order
            monoX = Monomials.computeMonomials(X, monomials);
            Y = GenPerm.operatorsImage(opGenPerm, X);
@@ -104,6 +109,7 @@ classdef Monomials
        end
 
        function mon = findOperatorsImage(Y, X, settings)
+           import qdimsum.*
            assert(length(Y) == length(X));
            n = length(X);
            d = size(X{1}, 1);
@@ -136,9 +142,10 @@ classdef Monomials
                end
            end
        end
-        
-        function indices = removeDuplicates(problem, indicesWithDuplicates, settings)
-        % TODO use unique rows
+       
+       function indices = removeDuplicates(problem, indicesWithDuplicates, settings)
+       % TODO use unique rows
+           import qdimsum.*
            X = problem.sampleOperators;
            X1 = X{1};
            d = size(X1, 1);
@@ -172,6 +179,7 @@ classdef Monomials
        end
 
        function indices = indicesFromFamily(problem, family, settings)
+           import qdimsum.*
            types = problem.operatorTypes;
            if length(family) == 0
                indices = {[]};

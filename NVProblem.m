@@ -32,6 +32,19 @@ classdef (Abstract) NVProblem < handle
 
     end
     
+    methods % For family monomial construction: override to use 'families' as a monomial parameter
+        
+        function types = operatorTypes(self)
+        % This method should return a partition of the operator indices
+        %
+        % For example, for a Bell scenario, return {[indicesAlice] [indicesBob]}
+        %
+        % See RAC22.m for an example
+            types = {1:self.numOperators};
+        end
+
+    end
+    
     methods % Generators of the symmetry/ambient group (required only for symmetrized optimization)
         
         % Returns the generators of the symmetry group of the problem
@@ -106,17 +119,7 @@ classdef (Abstract) NVProblem < handle
     
     
     methods
-        
-        function tau = sampleState(self)
-            K = self.sampleStateKraus;
-            tau = K*K';
-            tau = (tau + tau')/2;
-        end
-        
-        function types = operatorTypes(self)
-            types = {1:self.numOperators};
-        end
-        
+                        
         function n = numOperators(self)
             if isequal(self.cacheNumOperators, [])
                 self.cacheNumOperators = length(self.sampleOperators);
@@ -124,18 +127,6 @@ classdef (Abstract) NVProblem < handle
             n = self.cacheNumOperators;
         end
         
-        function chain = symmetryGroupChain(self)
-            chain = Chain.schreierSims(self.symmetryGroupGenerators);
-        end
-        
-        function gd = symmetryGroupDecomposition(self)
-            gd = self.symmetryGroupChain.groupDecomposition;
-        end
-        
-        function chain = ambientGroupChain(self)
-            chain = Chain.schreierSims(self.ambientGroupGenerators);
-        end
-
     end
    
 end

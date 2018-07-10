@@ -1,10 +1,11 @@
+import qdimsum.*                        
 settings = NVSettings;
 d = 5;
 % Test non symmetrized variant
 problem = CGLMP(d);
 families = {[] [1] [2] [1 2] [2 2]};
 monos = Monomials.families(problem, families, settings);
-ochain = problem.symmetryGroupDecomposition;
+ochain = Chain.schreierSims(problem.symmetryGroupGenerators).groupDecomposition;
 mchain = Monomials.actionDecomposition(problem, ochain, monos, settings);
 nMonos = length(monos);
 x = GenPerm.randomInDecomposition(ochain);

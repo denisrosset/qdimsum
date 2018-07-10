@@ -58,6 +58,7 @@ classdef Chain < handle
         % this element should be inserted as a strong generator
         %
         % Based on Holt (2005) RANDOMSCHREIER procedure, page 98.
+            import qdimsum.*
             n = length(g);
             node = at.next; % we have the chain at -> node
             if node.isTerm
@@ -96,6 +97,7 @@ classdef Chain < handle
         function b = siftAndAddStrongGenerator(start, g)
         % Sifts the given element through the chain and returns whether
         % a new strong generator has been discovered
+            import qdimsum.*
             res = Chain.siftAndUpdateBaseFrom(start, g);
             if isequal(res, [])
                 b = false;
@@ -108,6 +110,7 @@ classdef Chain < handle
         end
         
         function chain = schreierSims(generators, order, numTests)
+            import qdimsum.*
             if nargin < 3
                 numTests = 128;
             end

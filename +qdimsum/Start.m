@@ -7,6 +7,7 @@ classdef Start < handle
     methods (Static)
         
         function start = emptyChain(n)
+            import qdimsum.*
             start = Start;
             start.next = Term(n);
         end

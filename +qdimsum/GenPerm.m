@@ -7,6 +7,7 @@ classdef GenPerm
 
         % Compute the closure of a set of generators
         function G = closure(generators, n)
+            import qdimsum.*
             % TODO: replace by Dimino's algorithm
             id = 1:n;
             R = rand(n, 1);
@@ -44,6 +45,7 @@ classdef GenPerm
         end
         
         function matSym = symmetrize(mat, genPermChain)
+            import qdimsum.*
             C = length(genPermChain);
             N = size(mat, 1);
             matSym = mat;
@@ -70,6 +72,7 @@ classdef GenPerm
         end
                 
         function Y = operatorsImage(gp, X)
+            import qdimsum.*
             assert(length(gp) == length(X));
             n = length(X);
             Y = cell(1, n);
@@ -97,6 +100,7 @@ classdef GenPerm
         end
         
         function p = fromCycles(n, varargin)
+            import qdimsum.*
             p = 1:n;
             for i = length(varargin):-1:1
                 cycle = varargin{i};
@@ -109,6 +113,7 @@ classdef GenPerm
         end
         
         function z = compose(x, y)
+            import qdimsum.*
             assert(length(x) == length(y));
             %z = x(y);
             n = length(x);
@@ -134,15 +139,6 @@ classdef GenPerm
             x(flip) = -x(flip);
         end
         
-        function x = randomInDecomposition(chain)
-            n = size(chain{1}, 2);
-            x = 1:n;
-            for i = 1:length(chain)
-                c = chain{i};
-                s = randi(size(c, 1));
-                x = GenPerm.compose(x, c(s, :));
-            end
-        end
     end
     
 end

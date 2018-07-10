@@ -6,7 +6,28 @@ function objMax = nvOptimize(problem, monomials, method, settings, basis, repStr
 %                        as described below
 %
 % monomials            - List of monomial basis indices, or {'npa', level}, or {'families' family1 family2 ...}
-%                        see Monomials.npa/families
+%                        The list must not include duplicates, even under dimension/commutativity constraints
+%
+%                        For {'npa', level}, constructs all monomials of bounded degree "level", removing
+%                        potential duplicates.
+%
+%                        For {'families' family1 family2 ...}, returns the union of all monomials generated
+%                        by all families, removing potential duplicates.
+%
+%                        A family is given by a list of operator types [t1 t2 ...], where the values of t1, t2, ...
+%                        index the ordered partitions returned by problem.operatorTypes.
+%
+%                        Let Pi = problem.operatorTypes(ti). Then we generate, for each family, all monomials
+%                        p1 * p2 * ..., where p1 \in P1, p2 \in P2, etc...
+%
+%                        To use that method, the problem must override the method "operatorTypes" with a proper
+%                        definition; see RAC22.m for an example.
+%    
+%                        In a bipartite Bell scenario, the two types would be the operators for Alice and Bob
+%                        respectively, and the families {[] [1] [2] [1 2]} would correspond to the definition
+%                        of the almost quantum set (1 + A + B + AB).
+%
+%                        It is a good idea to include the family of the identity "[]" in the list.
 %
 % method               - The symmetry method used (or lack thereof). Can take one of the values:
 %
@@ -24,6 +45,8 @@ function objMax = nvOptimize(problem, monomials, method, settings, basis, repStr
 %                        'averageOnly', 'isotypic', 'full' require 'problem.groupDecomposition'
 %                        'blocks' needs 'problem.groupDecomposition' if changeOfBasis+representations are not provided
 %
+% settings             - An instance of NVSettings
+% 
 % basis                - Optional explicit change of basis matrix provided by the user
 %
 % repStructure         - Let nR be the number of inequivalent irreducible representations present in the
@@ -48,7 +71,12 @@ function objMax = nvOptimize(problem, monomials, method, settings, basis, repStr
 %                          Note that the moment matrix is NOT block diagonal in that basis, rather has blocks
 %                          corresponding to kron(B, eye(d)), where B is a m x m matrix (m is the multiplicity) and
 %                          d is the representation dimension.
-
+    import qdimsum.*
+    
+    if settings.checkLevel > 0
+        Check.problem(problem, settings);
+    end
+      
     if isequal(method, 'fastest')
         method = 'blocks';
     end
@@ -104,7 +132,7 @@ function objMax = nvOptimize(problem, monomials, method, settings, basis, repStr
     end
 
     if needsGroupDecomposition
-        gd = problem.symmetryGroupDecomposition;
+        gd = Chain.schreierSims(problem.symmetryGroupGenerators).groupDecomposition;
         monoAction = Monomials.actionDecomposition(problem, gd, monomials, settings);
     end
 

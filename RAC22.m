@@ -30,12 +30,12 @@ classdef RAC22 < NVProblem
             rho = cell(2, 2);
             for x1 = 1:2
                 for x2 = 1:2
-                rho{x1,x2} = Random.pureNormalizedDensityMatrix(dim);
+                rho{x1,x2} = qdimsum.Random.pureNormalizedDensityMatrix(dim);
                 end
             end
             M = cell(2, 2); % M(b,y)
             for y = 1:2
-                U = Random.unitary(2);
+                U = qdimsum.Random.unitary(2);
                 M{1,y} = U*[1 0; 0 0]*U';
                 M{2,y} = U*[0 0; 0 1]*U';
             end
@@ -92,6 +92,13 @@ classdef RAC22 < NVProblem
             flipX1 = [2 1 4 3 6 5 7 8];
             generators = [swapX1X2
                           flipX1];
+        end
+        
+        function generators = ambientGroupGenerators(self)
+            generators = [2 3 4 1 5 6 7 8
+                          2 1 3 4 5 6 7 8
+                          1 2 3 4 6 5 7 8
+                          1 2 3 4 7 8 5 6];
         end
         
     end

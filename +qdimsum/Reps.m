@@ -19,6 +19,7 @@ classdef Reps
         % U' * matrix * U is block diagonal
         %
         % with the structure given by the representation dimensions reps(1,:) and multiplicities reps(2,:)
+            import qdimsum.*
             n = size(groupDecomposition{1}, 2);            
             sample1 = Reps.sampleSymmetricMatrix(groupDecomposition);
             sample2 = Reps.sampleSymmetricMatrix(groupDecomposition);
@@ -128,6 +129,7 @@ classdef Reps
 
         function sample = sampleGenericMatrix(groupDecomposition)
         % Samples a real matrix that commutes with the given group action.
+            import qdimsum.*
             n = size(groupDecomposition{1}, 2);
             sample = GenPerm.symmetrize(randn(n), groupDecomposition);
         end
@@ -135,6 +137,7 @@ classdef Reps
         function sample = sampleSymmetricMatrix(groupDecomposition)
         % Samples a real symmetric matrix (in the sense M = M') that additionally commutes with
         % the given group action.
+            import qdimsum.*
             n = size(groupDecomposition{1}, 2);
             sample = GenPerm.symmetrize(Random.symmetricGaussian(n), groupDecomposition);
             sample = sample + sample';
@@ -150,6 +153,7 @@ classdef Reps
         % In each isotypic component, the copies of the representations are ordered.
         %
         % Note: does not try to split the group action into orbits, as irreducibleDecomposition does.
+            import qdimsum.*
             orbits = Reps.findOrbits(groupDecomposition, settings);
             sample1 = Reps.sampleSymmetricMatrix(groupDecomposition);
             sample2 = Reps.sampleSymmetricMatrix(groupDecomposition);
@@ -168,6 +172,7 @@ classdef Reps
         % See Reps.isotypicComponents for the output format.
         %
         % If settings.checkLevel > 0, then sample3 must be provided.
+            import qdimsum.*
             nOrbits = length(orbits);
             n = size(sample1, 1);
             vD = [];
@@ -244,6 +249,7 @@ classdef Reps
         function refinedBasis = refineIsotypicSubspace(groupDecomposition, basis, settings)
         % Refines the basis of an isotypic subspace; the basis is given by the column vectors
         % of "basis"
+            import qdimsum.*
             n = size(basis, 2);
             if size(basis, 1) == n
                 refinedBasis = eye(n);
@@ -278,6 +284,7 @@ classdef Reps
         % Note: the sample must not be a symmetric matrix
         %
         % TODO: support complex and quaternionic representations
+            import qdimsum.*
             sampleSym = sample + sample';
             lambda = eig(sample);
             lambdaSym = eig(sampleSym);
@@ -347,6 +354,7 @@ classdef Reps
         % If 'settings' is provided, and settings.blockDiagOrbits = false,
         % a single orbit {[1 ... n]} is returned and has the effect of disabling
         % orbit handling
+            import qdimsum.*
             n = size(groupDecomposition{1}, 2); % domain size
             if nargin > 1 && ~settings.blockDiagOrbits
                 orbits = {1:n}; % disable orbit lookup

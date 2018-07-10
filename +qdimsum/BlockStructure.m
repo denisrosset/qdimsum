@@ -22,6 +22,7 @@ classdef BlockStructure
         
         % Packs a block diagional matrix in a complex vector
         function vec = pack(self, mat)
+            import qdimsum.*
             dims = self.blockDimensions;
             vec = zeros(1, sum(dims));
             for i = 1:self.numBlocks
@@ -66,6 +67,7 @@ classdef BlockStructure
         
         % Extracts the i-th block from the packed vector
         function mat = extractBlock(self, vec, i)
+            import qdimsum.*
             data = vec(self.blockRange(i));
             mat = BlockStructure.vecToMat(data, self.blockSize(i));
         end

@@ -1,18 +1,7 @@
 classdef Random
     
     methods (Static)
-        
-        function g = groupElement(chain)
-            g = chain{1};
-            g = g(1,:);
-            C = length(chain);
-            for i = C:-1:1
-                c = chain{i};
-                r = randi(size(c, 1));
-                g = GenPerm.compose(c(r,:), g);
-            end
-        end
-        
+                
         function U = unitary(dim)
         % Returns a random unitary matrix of dimension dim
         % construct the Ginibre ensemble
@@ -54,6 +43,7 @@ classdef Random
         end
         
         function M = symmetricGaussian(d, sigma)
+            import qdimsum.*                        
         % Generates a symmetric matrix with measure invariant under orthogonal transformes
         % see http://reference.wolfram.com/language/ref/GaussianOrthogonalMatrixDistribution.html
         % however, that reference is ambiguous on how to sample the matrix elements
@@ -113,12 +103,12 @@ classdef Random
         end
         
         function ket = normalizedPureState(d)
-            ket = Random.unnormalizedPureState(d);
+            ket = qdimsum.Random.unnormalizedPureState(d);
             ket = ket / norm(ket);
         end
         
         function rho = pureNormalizedDensityMatrix(d)
-            ket = Random.unnormalizedPureState(d);
+            ket = qdimsum.Random.unnormalizedPureState(d);
             rho = ket*ket';
             rho = rho / trace(rho);
         end

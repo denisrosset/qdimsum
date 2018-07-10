@@ -1,4 +1,4 @@
-classdef Node < Chain
+classdef Node < qdimsum.Chain
     
     properties
         beta; % base point
@@ -67,6 +67,7 @@ classdef Node < Chain
         end
         
         function update(self)
+            import qdimsum.*
             S = self.strongGeneratingSet;
             nS = size(S, 1);
             newOrbit = [];

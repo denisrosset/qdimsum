@@ -49,6 +49,7 @@ classdef ToleranceHistogram < handle
         end
 
         function newHist = coarseGrain(self, div)
+            import qdimsum.*
             assert(mod(self.nBins, div) == 0, 'The given divisor must divide the bin count');
             newCounts = sum(reshape(self.counts, [div self.nBins/div]), 1);
             newHist = ToleranceHistogram(self.logMin, self.logMax, self.nBins/div);

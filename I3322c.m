@@ -58,7 +58,7 @@ classdef I3322c < NVProblem
             for i = 1:6
                 r = rankVec(i);
                 D = diag([ones(1, r), -ones(1, d - r)]);
-                U = Random.unitary(d);
+                U = qdimsum.Random.unitary(d);
                 X{i} = U * D * U';
             end
             for i = 1:3
@@ -69,9 +69,9 @@ classdef I3322c < NVProblem
             end
         end
         
-        function tau = sampleStateKraus(self)
+        function psi = sampleStateKraus(self)
             d = self.d;
-            tau = Random.normalizedPureState(d*d);
+            psi = qdimsum.Random.normalizedPureState(d*d);
         end
         
         function obj = computeObjective(self, X, K)
@@ -91,12 +91,14 @@ classdef I3322c < NVProblem
             obj = real(K' * bellOperator * K);
         end
         
-        function chain = groupDecomposition(self)
+        function generators = symmetryGroupGenerators(self)
             id = 1:6;
             permPart = [4 5 6 1 2 3];
             flip1 = [2 1 3 4 5 -6];
             flip2 = [1 2 -3 5 4 6];
-            chain = {[id; permPart] [id; flip1] [id; flip2]};
+            generators = [permPart
+                          flip1
+                          flip2];
         end
         
     end

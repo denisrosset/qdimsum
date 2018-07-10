@@ -16,6 +16,7 @@ classdef RandomBag < handle
     methods
         
         function res = sample(self)
+            import qdimsum.*
             r = size(self.x, 1);
             s = randi(r);
             t = randi(r);
