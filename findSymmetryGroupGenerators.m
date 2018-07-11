@@ -21,7 +21,7 @@ function generators = findSymmetryGroupGenerators(problem, settings)
         generators = 1:n;
         return
     end
-    ambChain = Chain.schreierSims(ambGens);
+    ambChain = Chain.fromGenerators(ambGens);
     
     walkChain(ambChain, 1:n);
     generators = symStart.next.strongGeneratingSet;

@@ -132,7 +132,7 @@ function objMax = nvOptimize(problem, monomials, method, settings, basis, repStr
     end
 
     if needsGroupDecomposition
-        gd = Chain.schreierSims(problem.symmetryGroupGenerators).groupDecomposition;
+        gd = Chain.fromGenerators(problem.symmetryGroupGenerators).groupDecomposition;
         monoAction = Monomials.actionDecomposition(problem, gd, monomials, settings);
     end
 

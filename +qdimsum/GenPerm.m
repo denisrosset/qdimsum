@@ -60,6 +60,26 @@ classdef GenPerm
             end
         end
 
+        function v = vectorImage(gp, v)
+            v = v .* sign(gp(:));
+            v(abs(gp)) = v;
+        end
+        
+        function M = orthogonalMatrix(gp)
+            M = diag(sign(gp));
+            M(abs(gp), :) = M;
+        end
+        
+        function M = slowOrthogonalMatrix(gp)
+            n = length(gp);
+            M = zeros(n, n);
+            for r = 1:n
+                for c = 1:n
+                    M(r,c) = (r == abs(gp(c)))*sign(gp(c));
+                end
+            end
+        end
+        
         function zeta = matrixImage(gp, chi)
             d = size(chi, 1);
             zeta = chi;

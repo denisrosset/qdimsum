@@ -1,4 +1,5 @@
 classdef Node < qdimsum.Chain
+% A node with non-trivial orbit in the BSGS chain
     
     properties
         beta; % base point

@@ -1,10 +1,14 @@
 classdef Chain < handle
-
+% Describes a (generalized) permutation group using a BSGS chain
+% constructed using randomized algorithms
     properties
         n; % domain size (not including negative elements)
     end
     
     methods (Abstract)
+        
+        % Note: most of those abstract methods are tail-recursive
+        % and could be rewritten as loops
         
         l = length_(self, acc)
         
@@ -86,6 +90,8 @@ classdef Chain < handle
         end
         
         function addStrongGenerator(start, node, g)
+        % Adds a strong generator to a node, and updates the orbits
+        % of all its parents
             node.addOwnStrongGenerator(g);
             c = start.next;
             while ~isequal(c, node.next)
@@ -109,7 +115,14 @@ classdef Chain < handle
             end
         end
         
-        function chain = schreierSims(generators, order, numTests)
+        function chain = randomConstruction(randomElement, order, numTests)
+        % Constructs a BSGS chain from an oracle that returns random group elements.
+        % 
+        % If the order of the group is provided, the algorithm is randomized but
+        % cannot fail. If the order of the group is not provided (or = -1), then
+        % a number of tests numTests is performed so that the probability of failure
+        % is 2^-numTests (provided that randomElement returns group elements sampled
+        % uniformly at random).
             import qdimsum.*
             if nargin < 3
                 numTests = 128;
@@ -117,12 +130,11 @@ classdef Chain < handle
             if nargin < 2 || isequal(order, [])
                 order = -1;
             end
-            n = size(generators, 2);
+            n = length(randomElement);
             start = Start.emptyChain(n);
-            bag = RandomBag(generators);
             numSifted = 0;
             while (order == -1 && numSifted <= numTests) || (order >= 1 && start.next.order < order)
-                s = bag.sample;
+                s = randomElement();
                 b = Chain.siftAndAddStrongGenerator(start, s);
                 if b
                     numSifted = 0;
@@ -131,6 +143,29 @@ classdef Chain < handle
                 end
             end
             chain = start.next;
+            
+        end
+        
+        function chain = fromGenerators(generators, order, numTests)
+        % Constructs a BSGS chain from a list of generators, given a row vectors
+        % in a matrix.
+        %
+        % If the order of the group is provided, the algorithm is randomized but
+        % cannot fail.
+        %
+        % Random elements are produced using the product replacement algorithm;
+        % that algorithm can be unsatisfactory when the group is a direct product
+        % of a large number of copies of the same finite simple group 
+        % (see Holt et al. Handbook of Computational Group Theory (2005), p. 69).
+            import qdimsum.*
+            if nargin < 3
+                numTests = 128;
+            end
+            if nargin < 2 || isequal(order, [])
+                order = -1;
+            end
+            bag = RandomBag(generators);
+            chain = Chain.randomConstruction(@() bag.sample, order, numTests);
         end
         
     end

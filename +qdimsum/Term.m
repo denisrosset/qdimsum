@@ -1,4 +1,5 @@
 classdef Term < qdimsum.Chain
+% The terminal node in a BSGS chain
     
    methods
        
