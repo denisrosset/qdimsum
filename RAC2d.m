@@ -89,6 +89,11 @@ classdef RAC2d < NVProblem
                 end
             end
         end
+        
+        function res = traceprod(A, B)
+            A=A.';
+            res = sum(A(:).*B(:));
+        end
 
         function obj = computeObjective(self, X, tau)
             d = self.d;
@@ -102,7 +107,9 @@ classdef RAC2d < NVProblem
                         else
                             b = x2;
                         end
-                        obj = obj + trace(tau * rho{x1,x2} * M{b,y});
+                        A = rho{x1, x2};
+                        B = M{b,y};
+                        obj = obj + sum(conj(A(:)).*B(:)); % trace(rho{x1,x2} * M{b,y}); % don't need to include tau as it is identity
                     end
                 end
             end
@@ -136,6 +143,20 @@ classdef RAC2d < NVProblem
             generators = [swapX1X2
                           cyclicX1
                           swapX1];
+        end
+        
+        function generators = ambientGroupGenerators(self)
+            d = self.d;
+            cyclicX = [2:d^2 1 d^2+(1:2*d)];
+            swapX = [2 1 3:d^2 d^2+(1:2*d)];
+            swapY = [1:d^2 d^2+d+(1:d) d^2+(1:d)];
+            cyclicB1 = [1:d^2 d^2+[2:d 1] d^2+d+(1:d)];
+            swapB1 = [1:d^2 d^2+[2 1 3:d] d^2+d+(1:d)];
+            generators = [cyclicX
+                          swapX
+                          swapY
+                          cyclicB1
+                          swapB1];
         end
         
     end
