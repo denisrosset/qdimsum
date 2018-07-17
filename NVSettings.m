@@ -6,7 +6,6 @@ classdef NVSettings < handle & matlab.mixin.SetGet
                                 %
         yalmipSettings = [];    % Settings to pass to YALMIP
         sampleChunkSize = 20;   % How many samples to generate at once
-        parallel = false;       % Whether to use parallelism
         checkLevel = 1;         % Level of sanity checks
                                 % 0 - disable
                                 % 1 - enable, low overhead
@@ -140,12 +139,12 @@ classdef NVSettings < handle & matlab.mixin.SetGet
                                                        % 'sdpnal.maxiterADM', 200, ... % from 200 to 400
         end
 
-        function scsSettings = yalmipSCS(tolerance, varargin)
-            scs_settings = @(e) sdpsettings('solver', 'scs', ...
-                                            'scs.alpha', 1.8, ... % restore
-                                            'scs.max_iters', 10000, ...
-                                            'scs.eps', tolerance, ...
-                                            varargin{:});
+        function yalmipSettings = yalmipSCS(tolerance, varargin)
+            yalmipSettings = sdpsettings('solver', 'scs', ...
+                                         'scs.alpha', 1.8, ... % restore
+                                         'scs.max_iters', 10000, ...
+                                         'scs.eps', tolerance, ...
+                                         varargin{:});
         end
         
         function settings = withHistograms(varargin)
