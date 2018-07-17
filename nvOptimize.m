@@ -42,7 +42,7 @@ function objMax = nvOptimize(problem, monomials, method, settings, basis, repStr
 %
 %                        These functions require certain methods to be available on the given problem.
 %                        
-%                        'averageOnly', 'isotypic', 'full' require 'problem.groupDecomposition'
+%                        'reynolds', 'isotypic', 'full' require 'problem.groupDecomposition'
 %                        'blocks' needs 'problem.groupDecomposition' if changeOfBasis+representations are not provided
 %
 % settings             - An instance of NVSettings
