@@ -297,14 +297,26 @@ function [objMax data timings] = nvOptimize(problem, monomials, method, settings
     if r == 1
         settings.log('Only one sample, not running semidefinite solver');
         objMax = objContribs(1);
-        % chi = blockStructure.unpack(samples(:,1));
-        % TODO reconstruct chi for potential output
+        if settings.checkLevel > 0
+            assert(abs(objContribs(2) - objContribs(1)) < settings.checksObjTol, ...
+                   ['Failed test of linear dependence of the objective on the moment matrix. ' ...
+                    'Increase the degree of monomials in the generating set.']);
+        end
+        data = 'Did not run optimization';
     else
         start = tic;
         Cons = [];
         x = sdpvar(r-1, 1);
         objMax = objContribs(1);
         objMax = objMax + (objContribs(2:r) - objContribs(1)) * x;
+        if settings.checkLevel > 0
+            sampleDep = samples(:,1:r) \ samples(:, r+1);
+            recObj = dot(objContribs(1:r), sampleDep);
+            newObj = objContribs(r+1);
+            assert(abs(recObj - newObj) < settings.checksObjTol, ...                   
+                   ['Failed test of linear dependence of the objective on the moment matrix. ' ...
+                    'Increase the degree of monomials in the generating set.']);
+        end
         for i = 1:blockStructure.numBlocks
             vecRange = blockStructure.blockRange(i);
             n = blockStructure.blockSize(i);

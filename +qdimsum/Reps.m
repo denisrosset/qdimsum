@@ -200,9 +200,13 @@ classdef Reps
             blockMask = zeros(nRuns, nRuns);
             for i = 1:nRuns
                 for j = 1:nRuns
-                    svds = svd(sample2p(runs{i}, runs{j}));
-                    blockMask(i, j) = max(svds);
-                    if ~isequal(settings.blockDiagMatHist, [])
+                    blockMask(i, j) = norm(sample2p(runs{i}, runs{j}));
+                end
+            end
+            if ~isequal(settings.blockDiagMatHist, [])
+                for i = 1:nRuns
+                    for j = 1:nRuns
+                        svds = svd(sample2p(runs{i}, runs{j}));
                         settings.blockDiagMatHist.register(svds(svds <= settings.blockDiagMatTol));
                     end
                 end
@@ -256,23 +260,16 @@ classdef Reps
             else
                 T = GenPerm.symmetrize(basis*Random.symmetricGaussian(n)*basis', groupDecomposition);
                 T = T + T';
-                % If checkLevel > 0, we compute an additional eigenvalue (which should be approx. zero) 
-                % and verify that it is small
-                nVecs = size(basis, 2) + (settings.checkLevel > 0);
-                if isequal(settings.blockDiagEigsOpts, []);
-                    [refinedBasis, lambda] = eigs(T, nVecs, 'LM');
-                else
-                    [refinedBasis, lambda] = eigs(T, nVecs, 'LM', settings.blockDiagEigsOpts);
-                end
+                [refinedBasis, lambda] = eig(T);
                 lambda = diag(lambda);
                 [~, I] = sort(abs(lambda)); % sort eigenvalues (needed on Matlab 2015b)
                 I = flipud(I(:)); % largest magnitude first
                 lambda = lambda(I); % reorder accordingly
-                refinedBasis = refinedBasis(:, I); 
+                refinedBasis = refinedBasis(:, I);
+                refinedBasis = refinedBasis(:, 1:n); % cuts the additional eigenvector
                 if settings.checkLevel > 0
-                    assert(abs(lambda(end)) < settings.blockDiagEigTol, ...
+                    assert(abs(lambda(n + 1)) < settings.blockDiagEigTol, ...
                            'The provided approximate basis does not match an isotypic component');                
-                    refinedBasis = refinedBasis(:, 1:size(basis, 2)); % cuts the additional eigenvector
                 end
             end
         end

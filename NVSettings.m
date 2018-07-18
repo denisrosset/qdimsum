@@ -21,6 +21,7 @@ classdef NVSettings < handle & matlab.mixin.SetGet
                                 %
         checksEigTol = 1e-9;    % Tolerance for eigenvalues of SDP constraints
         checksTol = 1e-12;      % Tolerance for linear equality constraints
+        checksObjTol = 1e-9;    % Tolerance for objective linear dependence on the moment matrix
                                 %
                                 % Settings for monomial samples comparison
                                 % ========================================
@@ -42,7 +43,6 @@ classdef NVSettings < handle & matlab.mixin.SetGet
                                 %
         blockDiagRefine = true; % Whether to use eigenspace refinement
         blockDiagOrbits = true; % Whether to consider group orbits in the basis computation
-        blockDiagEigsOpts = []; % Options to pass to "eigs" when performing refinement
         blockDiagEigTol = 1e-9; % tolerance used to compare eigenvalues
         blockDiagEigHist = [];  % histogram of eigenvalue magnitudes below tolerance
         blockDiagMatTol = 1e-9; % tolerance used to compare singular values of blocks to discover structure
