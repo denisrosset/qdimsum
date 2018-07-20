@@ -1,4 +1,4 @@
-function objMax = nvOptimize(problem, monomials, method, settings, basis, repStructure)
+function [objMax data timings] = nvOptimize(problem, monomials, method, settings, basis, repStructure)
 % NVOPTIMIZE Implementation of the Navascues-Vertesi hierarchy
 %
 %
@@ -73,6 +73,9 @@ function objMax = nvOptimize(problem, monomials, method, settings, basis, repStr
 %                          d is the representation dimension.
     import qdimsum.*
     
+    timings = struct;
+    data = [];
+    
     if settings.checkLevel > 0
         Check.problem(problem, settings);
     end
@@ -81,6 +84,7 @@ function objMax = nvOptimize(problem, monomials, method, settings, basis, repStr
         method = 'blocks';
     end
     
+    start = tic;
     if isequal(monomials{1}, 'npa')
         level = monomials{2};
         settings.log(sprintf('Computing monomials for NPA level %d', level));
@@ -96,6 +100,7 @@ function objMax = nvOptimize(problem, monomials, method, settings, basis, repStr
     
     nMonomials = length(monomials);
     settings.log(sprintf('Working with %d monomials', nMonomials));
+    timings.monomials = toc(start);
     
     UB_NONE = 0;
     UB_ISOTYPIC = 1;
@@ -131,11 +136,15 @@ function objMax = nvOptimize(problem, monomials, method, settings, basis, repStr
         needsGroupDecomposition = (userBasis ~= UB_IRREDUCIBLE);
     end
 
+    start = tic;
     if needsGroupDecomposition
         gd = Chain.fromGenerators(problem.symmetryGroupGenerators).groupDecomposition;
         monoAction = Monomials.actionDecomposition(problem, gd, monomials, settings);
     end
-    
+    timings.groupDecomposition = toc(start);
+
+    start = tic;
+
     if userBasis < needsBasis
         switch needsBasis
           case UB_ISOTYPIC
@@ -223,13 +232,17 @@ function objMax = nvOptimize(problem, monomials, method, settings, basis, repStr
         shift = shift + blockSizes(i);
     end
     blockStructure = BlockStructure(blockRanges);
+    timings.blockDiagonalization = toc(start); 
     
+    timings.sampling = 0;
+    timings.rank = 0;
     settings.log('Computing samples');
     samples = zeros(sampleDim, 0);
     objContribs = zeros(1, 0);
     l = 0;
     while 1
         samples = [samples zeros(sampleDim, settings.sampleChunkSize)];
+        start = tic;
         for i = 1:settings.sampleChunkSize
             X = problem.sampleOperators;
             K = problem.sampleStateKraus;
@@ -306,23 +319,41 @@ function objMax = nvOptimize(problem, monomials, method, settings, basis, repStr
             samples(:,l) = horzcat(sample{:});
             objContribs(l) = problem.computeObjective(X, K);
         end
+        timings.sampling = timings.sampling + toc(start);
+        start = tic;
         r = rank(samples);
+        timings.rank = timings.rank + toc(start);
         if r < l
             break
         end
     end
     settings.log(['Total of ' num2str(r) ' samples']);
+    timings.sampling = toc(start);
+    
     settings.log('Formulating optimization problem');
     if r == 1
         settings.log('Only one sample, not running semidefinite solver');
         objMax = objContribs(1);
-        % chi = blockStructure.unpack(samples(:,1));
-        % TODO reconstruct chi for potential output
+        if settings.checkLevel > 0
+            assert(abs(objContribs(2) - objContribs(1)) < settings.checksObjTol, ...
+                   ['Failed test of linear dependence of the objective on the moment matrix. ' ...
+                    'Increase the degree of monomials in the generating set.']);
+        end
+        data = 'Did not run optimization';
     else
+        start = tic;
         Cons = [];
         x = sdpvar(r-1, 1);
         objMax = objContribs(1);
         objMax = objMax + (objContribs(2:r) - objContribs(1)) * x;
+        if settings.checkLevel > 0
+            sampleDep = samples(:,1:r) \ samples(:, r+1);
+            recObj = dot(objContribs(1:r), sampleDep);
+            newObj = objContribs(r+1);
+            assert(abs(recObj - newObj) < settings.checksObjTol, ...                   
+                   ['Failed test of linear dependence of the objective on the moment matrix. ' ...
+                    'Increase the degree of monomials in the generating set.']);
+        end
         for i = 1:blockStructure.numBlocks
             vecRange = blockStructure.blockRange(i);
             n = blockStructure.blockSize(i);
@@ -336,10 +367,12 @@ function objMax = nvOptimize(problem, monomials, method, settings, basis, repStr
             Cons = [Cons
                     block >= 0];
         end
+        timings.formulation = toc(start);
         settings.log('Starting optimization');
-        res = solvesdp(Cons, -objMax, settings.yalmipSettings);
+        data = solvesdp(Cons, -objMax, settings.yalmipSettings);
         objMax = double(objMax);
-        % TODO reconstruct chi for potential output
+        timings.yalmip = data.yalmiptime;
+        timings.solver = data.solvertime;
     end
     
 end

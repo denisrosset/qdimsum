@@ -6,7 +6,7 @@ classdef (Abstract) NVProblem < handle
         cacheNumOperators = [];  % Number of operators, computed by taking a single sample
     end
     
-    properties(Abstract) % Configuration
+    properties (Abstract) % Configuration
         
         forceReal;  % Whether to use only the real part of the sampled moment matrix
                     % If the objective is real, this can safely be set to true

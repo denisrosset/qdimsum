@@ -16,16 +16,25 @@ function generators = findSymmetryGroupGenerators(problem, settings)
     obj = problem.computeObjective(X, K);
     symStart = Start.emptyChain(n);
     ambGens = problem.ambientGroupGenerators;
-    if length(findrows(ambGens, 1:n)) == size(ambGens, 1)
+    hasNonIdGenerator = false;
+    for i = 1:size(ambGens, 1)
+        if ~isequal(ambGens(i,:), 1:n)
+            hasNonIdGenerator = true;
+        end
+    end
+    if ~hasNonIdGenerator
         settings.log('Warning: ambient group of the given problem is trivial');
         generators = 1:n;
         return
     end
     ambChain = Chain.fromGenerators(ambGens);
     
+    tested = 0;
+    tic;
     walkChain(ambChain, 1:n);
     generators = symStart.next.strongGeneratingSet;
     function walkChain(chain, g)
+        import qdimsum.*
         if chain.isTerm
             X1 = GenPerm.operatorsImage(g, X);
             obj1 = problem.computeObjective(X1, K);
