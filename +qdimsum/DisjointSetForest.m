@@ -16,12 +16,12 @@ classdef DisjointSetForest < handle
         
         function r = find(self, x)
         % Finds the representative of the set in which x is contained.
-            if self.parent(x) ~= x
-                r = self.find(self.parent(x));
-                self.parent(x) = r;
-            else
-                r = x;
+            while self.parent(x) ~= x
+                nxt = self.parent(x);
+                self.parent(x) = self.parent(nxt);
+                x = nxt;
             end
+            r = x;
         end
         
         function union(self, x, y)
