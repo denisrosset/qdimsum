@@ -5,8 +5,8 @@ classdef Check
         function problem(problem, settings)
             import qdimsum.*
             Check.samples(problem, settings);
-            Check.symmetryGroup(problem, settings);
             Check.ambientGroup(problem, settings);
+            Check.symmetryGroup(problem, settings);
         end
         
         function samples(problem, settings)
@@ -18,8 +18,8 @@ classdef Check
 
         function symmetryGroup(problem, settings)
             import qdimsum.*
-            Check.generatorsLeaveObjectiveInvariant(problem, problem.symmetryGroupGenerators, settings);
             Check.generatorsLeaveOperatorsFeasible(problem, problem.symmetryGroupGenerators, settings);
+            Check.generatorsLeaveObjectiveInvariant(problem, problem.symmetryGroupGenerators, settings);
         end
         
         function ambientGroup(problem, settings)
@@ -38,7 +38,7 @@ classdef Check
                 obj1 = problem.computeObjective(X1, K);
                 diff = abs(obj1 - obj);
                 assert(diff < settings.checksTol, ...
-                       sprintf('The generator %s does not preserve the group', num2str(g)));
+                       sprintf('The generator %s does not preserve the objective', num2str(g)));
             end
         end
         
@@ -61,17 +61,17 @@ classdef Check
             for i = 1:length(Csdp)
                 mineig = min(eig(Csdp{i}));
                 assert(mineig > -settings.checksEigTol, ...
-                       sprintf('%s%d th SDP constraint violated, minimal eigenvalue %f', message, i, mineig));
+                       sprintf('%s SDP constraint #%d violated, minimal eigenvalue %f', message, i, mineig));
             end
             for i = 1:length(CopEq)
                 maxAbsSingVal = max(abs(eig(CopEq{i})));
                 assert(maxAbsSingVal < settings.checksEigTol, ...
-                       '%s%d th operator equality constraint violated, maximal singular value %f', message, i, maxAbsSingVal);
+                       '%s operator equality constraint #%d violated, maximal singular value %f', message, i, maxAbsSingVal);
             end
             for i = 1:length(CscEq)
                 diff = abs(trace(K'*CscEq{i}*K));
                 assert(diff < settings.checksTol, ...
-                       '%s%d th scalar equality constraint violated, difference %f', message, i, diff);
+                       '%s scalar equality constraint #%d violated, difference %f', message, i, diff);
             end
         end
                 

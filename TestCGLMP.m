@@ -1,4 +1,4 @@
-settings = NVSettings('yalmipSettings', sdpsettings('solver', 'mosek', 'verbose', 0)); 
+settings = NVSettings('yalmipSettings', sdpsettings('verbose', 0)); 
 
 dims = [3 4 5 6 7];
 res  = [0.7287 0.7432 0.7569 0.8000 0.8333];

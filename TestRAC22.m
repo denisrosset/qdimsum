@@ -1,4 +1,4 @@
-settings = NVSettings('yalmipSettings', NVSettings.yalmipMOSEK(1e-16));
+settings = NVSettings;
 problem = RAC22;
 monomials = {'families' [] [1] [2] [1 2]};
 objMax1 = nvOptimize(problem, monomials, 'none', settings);
@@ -13,8 +13,3 @@ assert(abs(objMax2 - sol) < tolerance, 'Result obtained is outside tolerance');
 assert(abs(objMax3 - sol) < tolerance, 'Result obtained is outside tolerance');
 assert(abs(objMax4 - sol) < tolerance, 'Result obtained is outside tolerance');
 assert(abs(objMax5 - sol) < tolerance, 'Result obtained is outside tolerance');
-abs(objMax1 - sol)
-abs(objMax2 - sol)
-abs(objMax3 - sol)
-abs(objMax4 - sol)
-abs(objMax5 - sol)
