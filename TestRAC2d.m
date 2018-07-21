@@ -1,5 +1,4 @@
-settings = NVSettings('yalmipSettings', NVSettings.yalmipMOSEK(1e-16, 'verbose', 0), ...
-                      'verbosityLevel', 1);
+settings = NVSettings;
 tolerance = 1e-6;
 monomials = {'families' [] [1] [2] [1 2]};
 for d = 2:6
