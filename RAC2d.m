@@ -16,7 +16,7 @@ classdef RAC2d < NVProblem
             types = {1:d^2 d^2+(1:2*d)};
         end
 
-        function X = sampleOperators(self, rank)
+        function X = sampleOperators(self)
             d=self.d;            
             rho = cell(d, d);
             for x1 = 1:d

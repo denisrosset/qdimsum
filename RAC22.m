@@ -6,7 +6,7 @@ classdef RAC22 < NVProblem
     
     methods
                 
-        function X = sampleOperators(self, rank)
+        function X = sampleOperators(self)
         % the first 4 operators are the states
         % the next 2 represent a projective measurement
         % the last 2 represent another projective measurement

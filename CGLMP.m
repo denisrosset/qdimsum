@@ -16,7 +16,7 @@ classdef CGLMP < NVProblem
             types = {1:2*d 2*d+(1:2*d)}; % rho and M
         end
         
-        function X = sampleOperators(self, rank)
+        function X = sampleOperators(self)
             d=self.d;            
             rho = cell(d,2);
             for x = 1:2
