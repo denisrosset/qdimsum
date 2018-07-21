@@ -137,7 +137,7 @@ function [objMax data timings] = nvOptimize(problem, monomials, method, settings
     end
 
     start = tic;
-    if needsGroupDecomposition
+    if needsGroupDecomposition || settings.checkLevel > 0
         gd = Chain.fromGenerators(problem.symmetryGroupGenerators).groupDecomposition;
         monoAction = Monomials.actionDecomposition(problem, gd, monomials, settings);
     end
@@ -158,7 +158,7 @@ function [objMax data timings] = nvOptimize(problem, monomials, method, settings
     end
 
     if needsBasis > UB_NONE
-        if settings.checkLevel
+        if settings.checkLevel > 0
             nRepresentations = size(repStructure, 2);
             if size(repStructure, 1) == 2
                 isotypicSizes = repStructure(1,:) .* repStructure(2,:);
