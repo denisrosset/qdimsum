@@ -152,7 +152,7 @@ classdef Monomials
            tau = Random.complexGaussian(d);
            N = length(indicesWithDuplicates);
            hash = zeros(1, N);
-           for i = 1:N               
+           for i = 1:N
                current = indicesWithDuplicates{i};
                h = trace(tau * Monomials.computeFromIndices(X, current));
                if real(h) < 0

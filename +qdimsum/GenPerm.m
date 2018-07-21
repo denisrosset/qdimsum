@@ -45,6 +45,7 @@ classdef GenPerm
         end
         
         function g = randomFromChain(genPermChain)
+        % Given a group decomposition (cell array), returns a random element
             import qdimsum.*
             C = length(genPermChain);
             dummy = genPermChain{1};
@@ -56,8 +57,43 @@ classdef GenPerm
                 g = GenPerm.compose(g, ui);
             end
         end
-        
+
         function matSym = symmetrize(mat, genPermChain)
+        % Symmetrizes a matrix under the action of a symmetry group (jointly on the rows and columns)
+        % The group is provided as a cell array decomposition
+            import qdimsum.*
+            C = length(genPermChain);
+            N = size(mat, 1);
+            matSym = mat;
+            for i = C:-1:1
+                av = zeros(N, N);
+                u = genPermChain{i};
+                for j = 1:size(u, 1)
+                    c = u(j, :);
+                    absC = abs(c);
+                    mS = find(c < 0);
+                    if isempty(mS)
+                        invc = 1:N;
+                        invc(c) = 1:N;
+                        av = av + matSym(invc, invc);
+                    else
+                        pS = find(c > 0);
+                        pT = absC(pS);
+                        mT = absC(mS);
+                        av(pT, pT) = av(pT, pT) + matSym(pS, pS);
+                        av(mT, mT) = av(mT, mT) + matSym(mS, mS);
+                        av(pT, mT) = av(pT, mT) - matSym(pS, mS);
+                        av(mT, pT) = av(mT, pT) - matSym(mS, pS);
+                    end
+                end
+                av = av / size(u, 1);
+                matSym = av;
+            end
+        end
+
+        function matSym = slowSymmetrize(mat, genPermChain)
+        % Symmetrizes a matrix under the action of a symmetry group (jointly on the rows and columns)
+        % The group is provided as a cell array decomposition
             import qdimsum.*
             C = length(genPermChain);
             N = size(mat, 1);
@@ -73,17 +109,21 @@ classdef GenPerm
             end
         end
 
+
         function v = vectorImage(gp, v)
+        % Image of a vector under a group element
             v = v .* sign(gp(:));
             v(abs(gp)) = v;
         end
         
         function M = orthogonalMatrix(gp)
+        % Permutation/orthogonal matrix corresponding to a group element
             M = diag(sign(gp));
             M(abs(gp), :) = M;
         end
         
         function M = slowOrthogonalMatrix(gp)
+        % Corresponds to the definition in the paper
             n = length(gp);
             M = zeros(n, n);
             for r = 1:n
