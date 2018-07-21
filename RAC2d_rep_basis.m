@@ -179,17 +179,10 @@ Order in NewR: It is in the same order as TABLE IV.
         PsiPsiid=PsiPsiid-Dxi(:,i)*Dxi(:,i)';
     end
 
-    [a b]=eig(PsiPsiid); 
-
-    loc=0;
-    Psiu=[];
-    for k=1:size(PsiPsiid,2)
-        if b(k,k)>10^-6;
-            loc=loc+1;
-            Psiu(:,loc)=a(:,k);
-        end
+    Psiu = [];
+    if d > 3
+        Psiu = orth(PsiPsiid);
     end
-
 
 
     O=[Wbeta Tt Dxi Psiu];
