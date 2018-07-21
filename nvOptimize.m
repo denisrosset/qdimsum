@@ -137,13 +137,14 @@ function [objMax data timings] = nvOptimize(problem, monomials, method, settings
     end
 
     start = tic;
-    if needsGroupDecomposition
+    if needsGroupDecomposition || settings.checkLevel > 0
         gd = Chain.fromGenerators(problem.symmetryGroupGenerators).groupDecomposition;
         monoAction = Monomials.actionDecomposition(problem, gd, monomials, settings);
     end
     timings.groupDecomposition = toc(start);
 
     start = tic;
+
     if userBasis < needsBasis
         switch needsBasis
           case UB_ISOTYPIC
@@ -157,6 +158,42 @@ function [objMax data timings] = nvOptimize(problem, monomials, method, settings
     end
 
     if needsBasis > UB_NONE
+        if settings.checkLevel > 0
+            nRepresentations = size(repStructure, 2);
+            if size(repStructure, 1) == 2
+                isotypicSizes = repStructure(1,:) .* repStructure(2,:);
+            else
+                isotypicSizes = repStructure;
+            end
+            for i = 1:settings.numSamplesChecks
+                g = GenPerm.randomFromChain(monoAction);
+                G = GenPerm.orthogonalMatrix(g);
+                G = basis'*G*basis;
+                shift = 0;
+                for i = 1:nRepresentations
+                    bs = isotypicSizes(i);
+                    G(shift+(1:bs), shift+(1:bs)) = 0;
+                    shift = shift + bs;
+                end
+                assert(norm(G) < settings.blockDiagMatTol, 'Error in isotypic components');
+            end
+            if size(repStructure, 1) == 2
+                for i = 1:settings.numSamplesChecks
+                    g = GenPerm.randomFromChain(monoAction);
+                    G = GenPerm.orthogonalMatrix(g);
+                    G = basis'*G*basis;
+                    shift = 0;
+                    for i = 1:nRepresentations
+                        for j = 1:repStructure(2, i)
+                            bs = repStructure(1, i);
+                            G(shift+(1:bs), shift+(1:bs)) = 0;
+                            shift = shift + bs;
+                        end
+                    end
+                    assert(norm(G) < settings.blockDiagMatTol, 'Error in irreducible components');
+                end
+            end
+        end
         switch size(repStructure, 1)
           case 1
             settings.log(['Found isotypic components of size ' num2str(repStructure)]);

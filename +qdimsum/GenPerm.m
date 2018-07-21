@@ -44,6 +44,19 @@ classdef GenPerm
             end
         end
         
+        function g = randomFromChain(genPermChain)
+            import qdimsum.*
+            C = length(genPermChain);
+            dummy = genPermChain{1};
+            N = size(dummy, 2);
+            g = 1:N;
+            for i = 1:C
+                c = genPermChain{i};
+                ui = c(randi(size(c, 1)), :);
+                g = GenPerm.compose(g, ui);
+            end
+        end
+        
         function matSym = symmetrize(mat, genPermChain)
             import qdimsum.*
             C = length(genPermChain);

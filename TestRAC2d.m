@@ -1,8 +1,8 @@
-settings = NVSettings('yalmipSettings', sdpsettings('solver', 'mosek', 'verbose', 0), ...
+settings = NVSettings('yalmipSettings', NVSettings.yalmipMOSEK(1e-16, 'verbose', 0), ...
                       'verbosityLevel', 1);
 tolerance = 1e-6;
 monomials = {'families' [] [1] [2] [1 2]};
-for d = 2:5
+for d = 2:6
     rac = RAC2d(d);
     sol = 1/2*(1+1/sqrt(d));
     bound1 = nvOptimize(rac, monomials, 'reynolds', settings);
