@@ -1,7 +1,7 @@
 QDimSum
 =======
 
-This package is maintained by Denis Rosset, Armin Tavakoli and Marc-Olivier Renou. The companion paper is available on the [arXiv](https://arxiv.org/search/quant-ph?searchtype=author&query=Rosset%2C+D) (note: **reference needs update**).
+This package is maintained by Denis Rosset, Armin Tavakoli and Marc-Olivier Renou. The companion paper is available on the [arXiv](https://arxiv.org/search/quant-ph?searchtype=author&query=Rosset%2C+D) (note: **paper will be on arXiv the week of July 23**).
 
 The project is licensed under the [3-Clause BSD License](https://github.com/denisrosset/qdimsum/blob/master/LICENSE.txt). If you use that software to produce research outcomes, we'd really appreciate a citation to the paper mentioned above.
 
@@ -20,7 +20,7 @@ Installation
 
 6. Unpack the `qdimsum-master.zip` file in a folder of your choice.
 
-7. Add your chosen folder location (/qdimsum-master) to your Matlab path (only that folder and not its subfolders).
+7. Add your chosen folder location (`/qdimsum-master`) to your Matlab path (only that folder and not its subfolders).
 
 8. Run the script [TestRAC22.m](https://github.com/denisrosset/qdimsum/blob/master/TestRAC22.m) present in the `qdimsum-master` folder. The script should finish without any error.
 
@@ -45,7 +45,8 @@ classdef RAC22a < NVProblem
             dim = 2;
             X = cell(1, 8);
             for i = 1:4
-                X{i} = qdimsum.Random.pureNormalizedDensityMatrix(dim);
+                X{i} = ...
+  qdimsum.Random.pureNormalizedDensityMatrix(dim);
             end
             U = qdimsum.Random.unitary(2);
             X{5} = U*[1 0; 0 0]*U';
@@ -95,7 +96,8 @@ settings = NVSettings;
 problem = RAC22a;
 monomials = {'npa' 2};
 disp('The objective value is:')
-upperBoundSDP = nvOptimize(problem, monomials, 'none', settings)
+upperBoundSDP = nvOptimize(problem, monomials, ...
+  'none', settings)
 disp('While the analytical value is:')
 sol = 1/2*(1+1/sqrt(2))
 ```
@@ -125,7 +127,7 @@ To use symmetrisation, you need to specify the symmetry group of the problem. Fo
         end
 ```
 
-The `symmetryGroupGenerators` method specifies the symmetries one wishes to exploit. A symmetry corresponds to a permutation of the sequence of physical operators which leaves the objective function invariant. If there are $N$ physical operators in the problem, the symmetry is specified by applying the relevant permutation to the list $(1, \ldots N)$. If there are $M$ such generators, the method `symmetryGroupGenerators` should return a $M \times N$ matrix containing one such permutation per row.
+The `symmetryGroupGenerators` method specifies the symmetries one wishes to exploit. A symmetry corresponds to a permutation of the sequence of physical operators which leaves the objective function invariant. If there are $N$ physical operators in the problem, a symmetry group element is specified by providing the image of the list $(1, \ldots N)$ under that symmetry group element. If the symmetry group has $M$ generators, the method `symmetryGroupGenerators` should return a $M \times N$ matrix containing one such permutation per row.
 
 Here, The generator `swapX1X2` permutes the indices $x_1$ and $x_2$ in $\rho_{x1,x2}$, while `flipX1` permutes $x_1$.
 
@@ -156,6 +158,7 @@ Optionally, if the isotypic or irreducible decomposition of the group action is 
 
 Each of these methods offers a different degree of symmetrization which may be more or less relevant depending on the specific problem of interest. In particular, due to a temporary limitation of our code, `irreps` and `blocks` require all the irreducible representations appearing to be of real type.
 
+Note: we allow permutations to flip the sign of the operator. For that, just flip the sign of the integer in the image (see [I3322.m](https://github.com/denisrosset/qdimsum/blob/master/I3322c.m) for an example).
 
 Controlling monomials: families of operators
 --------------------------------------------
@@ -188,7 +191,10 @@ Controlling settings
 We describe below the most important options in [NVSettings](https://github.com/denisrosset/qdimsum/blob/master/NVSettings.m). To change them from the default options, one calls `NVSettings` as such:
 
 ```matlab
-settings = NVSettings('yalmipSettings', sdpsettings('solver', 'sedumi', 'verbose', 0), 'verbosityLevel', 0);
+settings = NVSettings( ...
+  'yalmipSettings', ...
+  sdpsettings('solver', 'sedumi', 'verbose', 0), ...
+  'verbosityLevel', 0);
 ```
 
 This selects SeDuMi as a solver (by passing the relevant options to YALMIP), and prevents the code to output its progress, by silencing both `QDimSum` (with `verbosityLevel`) and SeDuMi (`verbose = 0`).
@@ -206,12 +212,15 @@ In the options above, the setting `checkLevel` is set to `1` by default. Then, `
         end
         function C = operatorEqualityConstraints(self, X)
             dim = 2;
-            C = {eye(dim) - X{5} - X{6}   % X{5}, X{6} form a projective measurement
-                 eye(dim) - X{7} - X{8}}; % X{7}, X{8} form a projective measurement
+            % X{5}, X{6} form a projective measurement
+            % X{7}, X{8} form a projective measurement
+            C = {eye(dim) - X{5} - X{6}
+                 eye(dim) - X{7} - X{8}};
         end
         function C = scalarEqualityConstraints(self, X)
             dim = 2;
-            mm = eye(dim)/dim;
+            mm = eye(dim)/dim; % states have the same
+			% trace as the maximally mixed state
             C = {mm - X{1}
                  mm - X{2}
                  mm - X{3}
@@ -225,18 +234,19 @@ In the file [RAC22d.m](https://github.com/denisrosset/qdimsum/blob/master/tutori
 
 ```
 Error using qdimsum.Check.sampleObeysConstraints (line 68)
-For generator 1  3  2  4  7  6  5  8: operator equality constraint #1 violated, maximal
+For generator 1  3  2  4  7  6  5  8: operator
+equality constraint #1 violated, maximal
 singular value 0.960222
 ```
 
-that identifies the problem: run [TestRAC22d.m](https://github.com/denisrosset/qdimsum/blob/master/tutorial/TestRAC22d.m) to reproduce that check.
+that identifies the problem: run [TestRAC22d.m](https://github.com/denisrosset/qdimsum/blob/master/tutorial/TestRAC22d.m) to reproduce that error and its detection.
 
 Additional tools
 ----------------
 
 - [findSymmetryGroupGenerators](https://github.com/denisrosset/qdimsum/blob/master/findSymmetryGroupGenerators.m): for a given physical problem and its ambient group (defined using the `ambientGroupGenerators` method, this function finds generators of the corresponding symmetry group. This is a useful tool when the objective function has none or only few *obvious* symmetries found by inspection. Despite the search for symmetries being fairly demanding, it is useful for small scale problems, as well as middle sized problems in which a lesser number of symmetries are already known.
 
-- In [NVSettings](https://github.com/denisrosset/qdimsum/blob/master/NVSettings.m), one controls the number of samples in a batch with `sampleChunkSize`. We also provided the static methods `NVSettings.yalmipMOSEK`, `NVSettings.yalmipSeDuMi`, `NVSettings.yalmipSDPT3`, `NVSettings.yalmipSDPNAL` and `NVSettings.yalmipSCS` that take a single parameter `tolerance` and possible additional parameters. They return a `sdpsettings`-like structure, with the tolerance of the solver set to the provided value, and the possible additional options. To use it as part of the settings, write `settings = NVSettings('verbosityLevel', 0, 'yalmipSettings', NVSettings.yalmipMOSEK(1e-9))`.
+- In [NVSettings](https://github.com/denisrosset/qdimsum/blob/master/NVSettings.m), one controls the number of samples in a batch with `sampleChunkSize`. We also provide the static methods `NVSettings.yalmipMOSEK`, `NVSettings.yalmipSeDuMi`, `NVSettings.yalmipSDPT3`, `NVSettings.yalmipSDPNAL` and `NVSettings.yalmipSCS` that take a single parameter `tolerance` and possible additional parameters. They return a `sdpsettings`-like structure, with the tolerance of the solver set to the provided value, and the possible additional options. To use it as part of the settings, write `settings = NVSettings('verbosityLevel', 0, 'yalmipSettings', NVSettings.yalmipMOSEK(1e-9))`.
 
 - Partial support for rank-constrained problems is available through [RankProblem.m](https://github.com/denisrosset/qdimsum/blob/master/RankProblem.m), but no documentation is currently available.
 
