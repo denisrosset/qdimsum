@@ -22,16 +22,16 @@ Installation
 
 7. Add your chosen folder location (/qdimsum-master) to your Matlab path (only that folder and not its subfolders).
 
-8. Run the script `TestRAC22.m` present in the `qdimsum-master` folder. The script should finish without any error.
+8. Run the script [TestRAC22.m](https://github.com/denisrosset/qdimsum/blob/master/TestRAC22.m) present in the `qdimsum-master` folder. The script should finish without any error.
 
 You are now ready to start learning about `QDimSum`.
 
 Simplest example (no symmetrisation)
 ------------------------------------
 
-We now consider the RAC example of our [paper](REF) **REFERENCE MISSING** for $n=2$ and $d=2$.
+We now consider the RAC example of our paper for $n=2$ and $d=2$.
 
-For that, we create a file named `RAC22a.m`, which is a class that extends the `NVProblem` class provided by `QDimSum`.
+For that, we create a file named [RAC22a.m](https://github.com/denisrosset/qdimsum/blob/master/tutorial/RAC22a.m), which is a class that extends the [NVProblem](https://github.com/denisrosset/qdimsum/blob/master/NVProblem.m) class provided by `QDimSum`.
 
 ```matlab
 classdef RAC22a < NVProblem
@@ -88,7 +88,7 @@ Now, a few explanations.
 
 - The method `computeObjective` computes the objective function of the problem of interest for a specific realization given by the operators `X` and the Kraus operator `K`.
 
-Now, to optimize over that problem, we do the following:
+Now, to optimize over that problem, we write the following in a [TestRAC22a.m](https://github.com/denisrosset/qdimsum/blob/master/tutorial/TestRAC22a.m) script:
 
 ```matlab
 settings = NVSettings;
@@ -102,19 +102,19 @@ sol = 1/2*(1+1/sqrt(2))
 
 Again, a few explanations:
 
-- The `settings` variable is an instance of the class `NVSettings`, that parameterizes not only the behaviour of `QDimSum` but also the options passed to YALMIP and the SDP solver. The default options are fine for now.
+- The `settings` variable is an instance of the class [NVSettings](https://github.com/denisrosset/qdimsum/blob/master/NVSettings.m), that parameterizes not only the behaviour of `QDimSum` but also the options passed to YALMIP and the SDP solver. The default options are fine for now.
 
 - The `monomials` variable provides the generating set of monomials used to construct the moment matrix. It can be a cell vector containing list of variable indices, or simply a cell array `{'npa' levelN}` where `levelN >= 1` is an integer corresponding to the maximal degree of monomials in the generating set.
 
 - For now, we pass the parameter `method='none'` as our problem does not define a symmetry group.
 
-- The `nvOptimize` function is where the magic happens, its parameters are [documented](https://github.com/denisrosset/qdimsum/blob/master/nvOptimize.m).
+- The [nvOptimize](https://github.com/denisrosset/qdimsum/blob/master/nvOptimize.m) function is where the magic happens (see its source code for full documentation about its use).
 
 
 Using symmetrisation
 --------------------
 
-To use symmetrisation, you need to specify the symmetry group of the problem. For that, add the method below to the class `RAC22` (just before or after `computeObjective`). For our purposes, we renamed the class `RAC22b` for that second step.
+To use symmetrisation, you need to specify the symmetry group of the problem. For that, add the method below to the class `RAC22` (just before or after `computeObjective`). For our purposes, we renamed the class [RAC22b](https://github.com/denisrosset/qdimsum/blob/master/tutorial/RAC22b.m) for that second step.
 
 ```matlab
         function generators = symmetryGroupGenerators(self)
@@ -129,7 +129,7 @@ The `symmetryGroupGenerators` method specifies the symmetries one wishes to expl
 
 Here, The generator `swapX1X2` permutes the indices $x_1$ and $x_2$ in $\rho_{x1,x2}$, while `flipX1` permutes $x_1$.
 
-Now, you have access to all the symmetrisation methods of `QDimSum`.
+Now, you have access to all the symmetrisation methods of `QDimSum`, we use the following [script](https://github.com/denisrosset/qdimsum/blob/master/tutorial/TestRAC22b.m):
 
 ```matlab
 settings = NVSettings;
@@ -180,10 +180,12 @@ monomials = {'families' [] [1] [2] [1 2]};
 nvOptimize(problem, monomials, 'blocks', settings)
 ```
 
+See the files [RAC22c.m](https://github.com/denisrosset/qdimsum/blob/master/tutorial/RAC22c.m) and [TestRAC22c.m](https://github.com/denisrosset/qdimsum/blob/master/tutorial/TestRAC22c.m).
+
 Controlling settings
 --------------------
 
-We describe below the most important options in `NVSettings`. To change them from the default options, one calls `NVSettings` as such:
+We describe below the most important options in [NVSettings](https://github.com/denisrosset/qdimsum/blob/master/NVSettings.m). To change them from the default options, one calls `NVSettings` as such:
 
 ```matlab
 settings = NVSettings('yalmipSettings', sdpsettings('solver', 'sedumi', 'verbose', 0), 'verbosityLevel', 0);
@@ -227,11 +229,14 @@ For generator 1  3  2  4  7  6  5  8: operator equality constraint #1 violated, 
 singular value 0.960222
 ```
 
-that identifies the problem.
+that identifies the problem: run [TestRAC22d.m](https://github.com/denisrosset/qdimsum/blob/master/tutorial/TestRAC22d.m) to reproduce that check.
 
 Additional tools
 ----------------
 
-- `findSymmetryGroupGenerators`: for a given physical problem and its ambient group (defined using the `ambientGroupGenerators` method, this function finds generators of the corresponding symmetry group. This is a useful tool when the objective function has none or only few *obvious* symmetries found by inspection. Despite the search for symmetries being fairly demanding, it is useful for small scale problems, as well as middle sized problems in which a lesser number of symmetries are already known.
+- [findSymmetryGroupGenerators](https://github.com/denisrosset/qdimsum/blob/master/findSymmetryGroupGenerators.m): for a given physical problem and its ambient group (defined using the `ambientGroupGenerators` method, this function finds generators of the corresponding symmetry group. This is a useful tool when the objective function has none or only few *obvious* symmetries found by inspection. Despite the search for symmetries being fairly demanding, it is useful for small scale problems, as well as middle sized problems in which a lesser number of symmetries are already known.
 
-- In `NVSettings`, one controls the number of samples in a batch with `sampleChunkSize`. We also provided the static methods `NVSettings.yalmipMOSEK`, `NVSettings.yalmipSeDuMi`, `NVSettings.yalmipSDPT3`, `NVSettings.yalmipSDPNAL` and `NVSettings.yalmipSCS` that take a single parameter `tolerance` and possible additional parameters. They return a `sdpsettings`-like structure, with the tolerance of the solver set to the provided value, and the possible additional options. To use it as part of the settings, write `settings = NVSettings('verbosityLevel', 0, 'yalmipSettings', NVSettings.yalmipMOSEK(1e-9))`.
+- In [NVSettings](https://github.com/denisrosset/qdimsum/blob/master/NVSettings.m), one controls the number of samples in a batch with `sampleChunkSize`. We also provided the static methods `NVSettings.yalmipMOSEK`, `NVSettings.yalmipSeDuMi`, `NVSettings.yalmipSDPT3`, `NVSettings.yalmipSDPNAL` and `NVSettings.yalmipSCS` that take a single parameter `tolerance` and possible additional parameters. They return a `sdpsettings`-like structure, with the tolerance of the solver set to the provided value, and the possible additional options. To use it as part of the settings, write `settings = NVSettings('verbosityLevel', 0, 'yalmipSettings', NVSettings.yalmipMOSEK(1e-9))`.
+
+- Partial support for rank-constrained problems is available through [RankProblem.m](https://github.com/denisrosset/qdimsum/blob/master/RankProblem.m), but no documentation is currently available.
+
