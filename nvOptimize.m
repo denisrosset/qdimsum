@@ -8,6 +8,9 @@ function [objMax data timings] = nvOptimize(problem, monomials, method, settings
 % monomials            - List of monomial basis indices, or {'npa', level}, or {'families' family1 family2 ...}
 %                        The list must not include duplicates, even under dimension/commutativity constraints
 %
+%                        The first level of the hierarchy for 4 operators would be given by
+%                        {[] [1] [2] [3] [4]}, where the indices are the indices of variables.
+%
 %                        For {'npa', level}, constructs all monomials of bounded degree "level", removing
 %                        potential duplicates.
 %
@@ -24,9 +27,8 @@ function [objMax data timings] = nvOptimize(problem, monomials, method, settings
 %                        definition; see RAC22.m for an example.
 %    
 %                        In a bipartite Bell scenario, the two types would be the operators for Alice and Bob
-%                        respectively, and the families {[] [1] [2] [1 2]} would correspond to the definition
-%                        of the almost quantum set (1 + A + B + AB).
-%
+%                        respectively, and the families {'families' [] [1] [2] [1 2]} would correspond to the
+%                        definition of the almost quantum set (1 + A + B + AB).
 %                        It is a good idea to include the family of the identity "[]" in the list.
 %
 % method               - The symmetry method used (or lack thereof). Can take one of the values:
