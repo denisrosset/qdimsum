@@ -1,0 +1,17 @@
+settings = NVSettings('yalmipSettings', NVSettings.yalmipMOSEK(0, 'verbose', 1), 'verbosityLevel', 1, 'checkLevel', 0);
+d = 7;
+[monomials U reps] = RAC2d_rep_basis(d);
+rac = RAC2d(d);
+sol = 1/2*(1+1/sqrt(d));
+yalmip clear;
+[bound2,~,timings2] = nvOptimize(rac, monomials, 'reynolds', settings);
+yalmip clear;
+[bound3,~,timings3] = nvOptimize(rac, monomials, 'isotypic', settings);
+yalmip clear;
+[bound4,~,timings4] = nvOptimize(rac, monomials, 'irreps', settings);
+yalmip clear;
+[bound5,~,timings5] = nvOptimize(rac, monomials, 'blocks', settings);
+yalmip clear;
+[bound6,~,timings6] = nvOptimize(rac, monomials, 'irreps', settings, U, reps);
+yalmip clear;
+[bound7,~,timings7] = nvOptimize(rac, monomials, 'blocks', settings, U, reps);
