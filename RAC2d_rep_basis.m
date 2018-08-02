@@ -1,23 +1,25 @@
 function [monomials NewR reps] = RAC2d_rep_basis(d)
-% Credit: MarcO
-%{
-LIST OF REPRESENTATION AND ORDER:
+% Constructs the irreducible decomposition
+%
+% Based on original code from Marc-Olivier Renou
+%
+% The representations appear in the same order as in Table IV of
+% the companion paper. Refer to that table for the dimensions and
+% multiplicities.
+%
+% The final multiplicities are:
+%
+% - 5 representations T
+% - 3 representations S
+% - 7 representations Phi
+% - 4 representations pi+
+% - 3 representations pi-
+% - 1 representations Lambda
+% - 1 representations Omega
+% - 1 representations lambda
+% - 1 representations omega
 
-Have first a look at TABLE IV. for the list of representation with dimension and
-multiplicities
-
-Order in NewR: It is in the same order as TABLE IV.
-
-- 5 representations T
-- 3 representations S
-- 7 representations Phi
-- 4 representations pi+
-- 3 representations pi-
-- 1 representations Lambda
-- 1 representations Omega
-- 1 representations lambda
-- 1 representations omega
-%}
+    assert(d > 2, 'Supports only d > 2');
 
     monomials = cell(1, 0);
     monomials{1} = [];
@@ -594,24 +596,24 @@ Order in NewR: It is in the same order as TABLE IV.
     NewR=[p1 p2 p5 p8 p20 p6 p9 p21 p3 p7 p10 p11 p15t p22 p14 p4 p12 p16 p15d1 p15d2 p13 p17 p18 p24 p15W p15p ];
     %p19 p22 p23 p24 p25 p15];
 
-% $$$     function res = Tensor(varargin)
-% $$$         res = [1];
-% $$$         for iii = 1:length(varargin)
-% $$$             res = kron(res, varargin{iii});
-% $$$         end
-% $$$     end
-% $$$ 
-% $$$     function state = Swap(state, sys, dim)
-% $$$         sys1 = length(dim) + 1 - sys(1);
-% $$$         sys2 = length(dim) + 1 - sys(2);
-% $$$         dim = fliplr(dim(:)');
-% $$$         origdim = size(state);
-% $$$         state = reshape(state, dim);
-% $$$         sysperm = 1:length(dim);
-% $$$         sysperm(sys2) = sys1;
-% $$$         sysperm(sys1) = sys2;
-% $$$         state = permute(state, sysperm);
-% $$$         state = reshape(state, origdim);
-% $$$     end
+    function res = Tensor(varargin)
+        res = [1];
+        for iii = 1:length(varargin)
+            res = kron(res, varargin{iii});
+        end
+    end
+
+    function state = Swap(state, sys, dim)
+        sys1 = length(dim) + 1 - sys(1);
+        sys2 = length(dim) + 1 - sys(2);
+        dim = fliplr(dim(:)');
+        origdim = size(state);
+        state = reshape(state, dim);
+        sysperm = 1:length(dim);
+        sysperm(sys2) = sys1;
+        sysperm(sys1) = sys2;
+        state = permute(state, sysperm);
+        state = reshape(state, origdim);
+    end
 
 end
