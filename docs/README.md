@@ -1,7 +1,9 @@
 QDimSum
 =======
 
-This package is maintained by Denis Rosset, Armin Tavakoli and Marc-Olivier Renou. The companion paper is available on the [arXiv](https://arxiv.org/pdf/1808.02412.pdf).
+This package is maintained by Denis Rosset, Armin Tavakoli and Marc-Olivier Renou. The companion paper is:
+
+A. Tavakoli, D. Rosset and M.-O. Renou, [Enabling computation of correlation bounds for finite-dimensional quantum systems via symmetrisation, arXiv:1808.02412](https://arxiv.org/pdf/1808.02412.pdf)
 
 The project is licensed under the [3-Clause BSD License](https://github.com/denisrosset/qdimsum/blob/master/LICENSE.txt). If you use that software to produce research outcomes, we'd really appreciate a citation to the paper mentioned above.
 
