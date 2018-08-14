@@ -1,7 +1,7 @@
 QDimSum
 =======
 
-This package is maintained by Denis Rosset, Armin Tavakoli and Marc-Olivier Renou. The companion paper is available on the [arXiv](https://arxiv.org/search/quant-ph?searchtype=author&query=Rosset%2C+D) (note: **paper will be on arXiv the week of July 23**).
+This package is maintained by Denis Rosset, Armin Tavakoli and Marc-Olivier Renou. The companion paper is available on the [arXiv](https://arxiv.org/pdf/1808.02412.pdf).
 
 The project is licensed under the [3-Clause BSD License](https://github.com/denisrosset/qdimsum/blob/master/LICENSE.txt). If you use that software to produce research outcomes, we'd really appreciate a citation to the paper mentioned above.
 
