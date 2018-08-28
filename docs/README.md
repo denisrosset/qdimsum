@@ -1,11 +1,23 @@
 QDimSum
 =======
 
-This package is maintained by Denis Rosset, Armin Tavakoli and Marc-Olivier Renou. The companion paper is:
+This package was written by Denis Rosset, Armin Tavakoli and Marc-Olivier Renou.
 
-A. Tavakoli, D. Rosset and M.-O. Renou, [Enabling computation of correlation bounds for finite-dimensional quantum systems via symmetrisation, arXiv:1808.02412](https://arxiv.org/pdf/1808.02412.pdf)
+It implements the algorithms described in
 
-The project is licensed under the [3-Clause BSD License](https://github.com/denisrosset/qdimsum/blob/master/LICENSE.txt). If you use that software to produce research outcomes, we'd really appreciate a citation to the paper mentioned above.
+- A. Tavakoli, D. Rosset and M.-O. Renou, [Enabling computation of correlation bounds for finite-dimensional quantum systems via symmetrisation, arXiv:1808.02412](https://arxiv.org/pdf/1808.02412.pdf)
+
+and is based on the Navascués-Vértesi hierarchy described in
+
+- M. Navascués, A. Feix, M. Araújo, and T. Vértesi, [Characterizing finite-dimensional quantum behavior](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.92.042117
+
+We also mention the first use of symmetrisation applied to the Navascués-Vértesi in the independent work:
+
+- E. A. Aguilar, J. J. Borkała, P. Mironowicz, M. Pawłowski, [Connections Between Mutually Unbiased Bases and Quantum Random Access Codes](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.121.050501)
+
+The project is licensed under the [3-Clause BSD License](https://github.com/denisrosset/qdimsum/blob/master/LICENSE.txt).
+
+*If you use our software to produce research outcomes, please cite the papers mentioned above.*
 
 Installation
 ------------
