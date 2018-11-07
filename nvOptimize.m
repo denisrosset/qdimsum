@@ -137,7 +137,7 @@ function [objMax data timings] = nvOptimize(problem, monomials, method, settings
         needsBasis = UB_IRREDUCIBLE;
         needsGroupDecomposition = (userBasis ~= UB_IRREDUCIBLE);
       otherwise
-        error("Method should be either: none, reynolds, isotypic, irreps, blocks, fastest')
+        error('Method should be either: none, reynolds, isotypic, irreps, blocks, fastest')
     end
 
     start = tic;
