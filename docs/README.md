@@ -11,7 +11,7 @@ and is based on the Navascués-Vértesi hierarchy described in
 
 - M. Navascués, A. Feix, M. Araújo, and T. Vértesi, [Characterizing finite-dimensional quantum behavior](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.92.042117
 
-We also mention the first use of symmetrisation applied to the Navascués-Vértesi in the independent work:
+We also mention the first use of symmetrisation applied to the Navascués-Vértesi hierarchy in the independent work:
 
 - E. A. Aguilar, J. J. Borkała, P. Mironowicz, M. Pawłowski, [Connections Between Mutually Unbiased Bases and Quantum Random Access Codes](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.121.050501)
 
