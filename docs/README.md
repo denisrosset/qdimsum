@@ -9,7 +9,7 @@ It implements the algorithms described in
 
 and is based on the Navascués-Vértesi hierarchy described in
 
-- M. Navascués, A. Feix, M. Araújo, and T. Vértesi, [Characterizing finite-dimensional quantum behavior](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.92.042117
+- M. Navascués, A. Feix, M. Araújo, and T. Vértesi, [Characterizing finite-dimensional quantum behavior](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.92.042117)
 
 We also mention the first use of symmetrisation applied to the Navascués-Vértesi hierarchy in the independent work:
 
