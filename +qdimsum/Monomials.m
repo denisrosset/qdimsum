@@ -84,7 +84,7 @@ classdef Monomials
            C = length(groupDecomposition);
            N = length(monomials);
            monoChain = cell(1, C);
-           X = problem.sampleOperators; % verify that the computation goes in the right order
+           X = problem.sampleOperators;
            monoX = Monomials.computeMonomials(X, monomials);
            for i = 1:C
                c = groupDecomposition{i};
@@ -101,11 +101,16 @@ classdef Monomials
        
        function monoGenPerm = findMonomialAction(problem, monomials, opGenPerm, settings)
            import qdimsum.*
-           X = problem.sampleOperators; % verify that the computation goes in the right order
+           N = length(monomials);
+           M = size(opGenPerm, 1);
+           monoGenPerm = zeros(M, N);
+           X = problem.sampleOperators;
            monoX = Monomials.computeMonomials(X, monomials);
-           Y = GenPerm.operatorsImage(opGenPerm, X);
-           monoY = Monomials.computeMonomials(Y, monomials);
-           monoGenPerm = Monomials.findOperatorsImage(monoY, monoX, settings);
+           for i = 1:M
+               Y = GenPerm.operatorsImage(opGenPerm(i, :), X);
+               monoY = Monomials.computeMonomials(Y, monomials);
+               monoGenPerm(i, :) = Monomials.findOperatorsImage(monoY, monoX, settings);
+           end
        end
 
        function mon = findOperatorsImage(Y, X, settings)

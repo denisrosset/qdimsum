@@ -15,47 +15,41 @@ classdef Random
             U = bsxfun(@times,Q,R.'); % much faster than the naive U = Q*diag(R) 
         end
         
-        function M = realGaussian(d, sigma)
-            if nargin < 2
-                sigma = 1;
-            end
-            M = randn(d) * sigma;
+        function M = realGaussian(d)
+            M = randn(d);
         end
         
-        function M = complexGaussian(d, sigma)
-            if nargin < 2
-                sigma = 1;
-            end
-            M = (randn(d) + randn(d) * 1i)*sigma/sqrt(2); % TODO: is that correct?
+        function M = complexGaussian(d)
+            M = (randn(d) + randn(d) * 1i)/sqrt(2);
         end
         
-        function M = hermitianGaussian(d, sigma)
-            if nargin < 2
-                sigma = 1;
-            end
+        function M = hermitianGaussian(d)
+        % Generates a Hermitian matrix with measure invariant under unitary transformations,
+        % sampled from the Gaussian Unitary Ensemble
+        % see http://staff.math.su.se/shapiro/UIUC/random_matrices.pdf
+        %
+        % d is the dimension            
             M = zeros(d, d);
             for r = 1:d
-                M(r, r:end) = randn(1, d-r+1) * (sigma / sqrt(2));
-                M(r, r+1:end) = randn(1, d-r) * (1i*sigma / sqrt(2));
-                M(r, r) = M(r, r) * sqrt(2);
+                M(r, r) = randn;
+                M(r, r+1:end) = (randn(1, d-r) + randn(1, d-r)*1i)/sqrt(2);
                 M(r+1:end, r) = conj(M(r, r+1:end));
             end
         end
         
-        function M = symmetricGaussian(d, sigma)
-            import qdimsum.*                        
-        % Generates a symmetric matrix with measure invariant under orthogonal transformes
-        % see http://reference.wolfram.com/language/ref/GaussianOrthogonalMatrixDistribution.html
-        % however, that reference is ambiguous on how to sample the matrix elements
-        % (should the diagonal elements be scaled by sqrt(2) or not? we choose the affirmative)
+        function M = symmetricGaussian(d)
+        % Generates a symmetric matrix with measure invariant under orthogonal transformations,
+        % sampled from the Gaussian Orthogonal Ensemble
+        % see http://staff.math.su.se/shapiro/UIUC/random_matrices.pdf
         %
-        % d is the dimension and sigma the standard deviation
-            if nargin < 2
-                sigma = 1;
-            end
-            M = BlockStructure.vecToMat(randn(1, d*(d+1)) * (sigma / sqrt(2)), d);
-            for i = 1:d
-                M(i, i) = M(i, i) * sqrt(2);
+        % d is the dimension
+            M = zeros(d, d);
+            for r = 1:d
+                % diagonal elements are scaled up by sqrt(2)
+                M(r, r) = randn * sqrt(2);
+                % while other elements are standard normals
+                M(r, r+1:end) = randn(1, d-r);
+                M(r+1:end, r) = M(r, r+1:end);
             end
         end
         

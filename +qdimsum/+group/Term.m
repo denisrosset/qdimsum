@@ -1,4 +1,4 @@
-classdef Term < qdimsum.Chain
+classdef Term < qdimsum.group.Chain
 % The terminal node in a BSGS chain
     
    methods

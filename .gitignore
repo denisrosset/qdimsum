@@ -1,2 +1,6 @@
+qdimsum.jar
 docs/_site
 docs/Gemfile.lock
+java/target
+java/project/target
+java/.idea

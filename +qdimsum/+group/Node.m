@@ -1,4 +1,4 @@
-classdef Node < qdimsum.Chain
+classdef Node < qdimsum.group.Chain
 % A node with non-trivial orbit in the BSGS chain
     
     properties
@@ -42,7 +42,7 @@ classdef Node < qdimsum.Chain
         end
         
         function o = order_(self, acc)
-            o = self.next.order_(acc * self.orbitSize);
+            o = self.next.order_(acc.multiply(java.math.BigInteger(self.orbitSize)));
         end
         
         function i = orbitIndex(self, b)

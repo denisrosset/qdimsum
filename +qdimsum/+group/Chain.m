@@ -6,48 +6,77 @@ classdef Chain < handle
     end
     
     methods (Abstract)
+        b = isTerm(self) % whether it is a terminal node
+    end
+
+    methods
         
         % Note: most of those abstract methods are tail-recursive
         % and could be rewritten as loops
         
-        l = length_(self, acc)
-        
-        g = random_(self, acc)
-        
-        o = order_(self, acc)
-        
-        s = sift(self, remaining)
-        
-        s = strongGeneratingSet_(self, acc)
-        
-        b = isTerm(self) % whether it is a terminal node
-        
-        gd = groupDecomposition_(self, acc)
-        
-    end
-    
-    methods
-       
         function l = length(self)
-            l = self.length_(0);
+            l = 0;
+            it = self;
+            while ~it.isTerm
+                l = l + 1;
+                it = it.next;
+            end
         end
         
         function r = random(self)
-            r = self.random_(1:self.n);
+            import qdimsum.GenPerm;
+            it = self;
+            r = 1:self.n;
+            while ~it.isTerm
+                r = GenPerm.compose(r, it.randomU);
+                it = it.next;
+            end
+        end
+
+        function o = order(self)
+            it = self;
+            o = java.math.BigInteger(1);
+            while ~it.isTerm
+                o = o.multiply(java.math.BigInteger(it.orbitSize));
+                it = it.next;
+            end
         end
         
-        function o = order(self)
-            o = self.order_(1);
+        function remaining = sift(self, el)
+            import qdimsum.GenPerm;
+            it = self;
+            remaining = el;
+            while ~it.isTerm
+                b = GenPerm.image(remaining, it.beta);
+                i = it.orbitIndex(b);
+                if i == 0
+                    s = [];
+                    return
+                else
+                    remaining = GenPerm.compose(it.uInv(i, :), remaining);
+                end
+                it = it.next;
+            end
         end
         
         function s = strongGeneratingSet(self)
-            s = self.strongGeneratingSet_(zeros(0, self.n));
+            s = zeros(0, self.n);
+            it = self;
+            while ~it.isTerm
+                s = vertcat(s, it.ownStrongGenerators);
+                it = it.next;
+            end
+        end
+                        
+        function gd = groupDecomposition(self)
+            gd = {};
+            it = self;
+            while ~it.isTerm
+                gd = horzcat(gd, {it.u});
+                it = it.next;
+            end
         end
         
-        function gd = groupDecomposition(self)
-            gd = self.groupDecomposition_({});
-        end
-
     end
     
     methods (Static)
@@ -62,13 +91,12 @@ classdef Chain < handle
         % this element should be inserted as a strong generator
         %
         % Based on Holt (2005) RANDOMSCHREIER procedure, page 98.
-            import qdimsum.*
             n = length(g);
             node = at.next; % we have the chain at -> node
             if node.isTerm
-                beta = GenPerm.findMovedPoint(g);
+                beta = qdimsum.GenPerm.findMovedPoint(g);
                 if beta > 0
-                    newNode = Node(beta, n);
+                    newNode = qdimsum.group.Node(beta, n);
                     % insert node so that: at -> newNode -> node
                     at.next = newNode;
                     newNode.next = node;
@@ -77,14 +105,14 @@ classdef Chain < handle
                     res = [];
                 end
             else
-                b = GenPerm.image(g, node.beta);
+                b = qdimsum.GenPerm.image(g, node.beta);
                 i = node.orbitIndex(b);
                 if i == 0
                     res = {g node};
                 else
-                    h = GenPerm.compose(node.uInv(i, :), g);
+                    h = qdimsum.GenPerm.compose(node.uInv(i, :), g);
                     % recursive call
-                    res = Chain.siftAndUpdateBaseFrom(at.next, h);
+                    res = qdimsum.group.Chain.siftAndUpdateBaseFrom(at.next, h);
                 end
             end
         end
@@ -103,14 +131,13 @@ classdef Chain < handle
         function b = siftAndAddStrongGenerator(start, g)
         % Sifts the given element through the chain and returns whether
         % a new strong generator has been discovered
-            import qdimsum.*
-            res = Chain.siftAndUpdateBaseFrom(start, g);
+            res = qdimsum.group.Chain.siftAndUpdateBaseFrom(start, g);
             if isequal(res, [])
                 b = false;
             else
                 g = res{1};
                 node = res{2};
-                Chain.addStrongGenerator(start, node, g);
+                qdimsum.group.Chain.addStrongGenerator(start, node, g);
                 b = true;
             end
         end
@@ -123,19 +150,20 @@ classdef Chain < handle
         % a number of tests numTests is performed so that the probability of failure
         % is 2^-numTests (provided that randomElement returns group elements sampled
         % uniformly at random).
-            import qdimsum.*
             if nargin < 3
                 numTests = 128;
             end
             if nargin < 2 || isequal(order, [])
-                order = -1;
+                hasOrder = false;
+            else
+                hasOrder = true;
             end
             n = length(randomElement);
-            start = Start.emptyChain(n);
+            start = qdimsum.group.Start.emptyChain(n);
             numSifted = 0;
-            while (order == -1 && numSifted <= numTests) || (order >= 1 && start.next.order < order)
+            while (~hasOrder && numSifted <= numTests) || (hasOrder && start.next.order.compareTo(order) < 0)
                 s = randomElement();
-                b = Chain.siftAndAddStrongGenerator(start, s);
+                b = qdimsum.group.Chain.siftAndAddStrongGenerator(start, s);
                 if b
                     numSifted = 0;
                 else
@@ -143,7 +171,6 @@ classdef Chain < handle
                 end
             end
             chain = start.next;
-            
         end
         
         function chain = fromGenerators(generators, order, numTests)
@@ -157,15 +184,14 @@ classdef Chain < handle
         % that algorithm can be unsatisfactory when the group is a direct product
         % of a large number of copies of the same finite simple group 
         % (see Holt et al. Handbook of Computational Group Theory (2005), p. 69).
-            import qdimsum.*
             if nargin < 3
                 numTests = 128;
             end
             if nargin < 2 || isequal(order, [])
-                order = -1;
+                order = [];
             end
-            bag = RandomBag(generators);
-            chain = Chain.randomConstruction(@() bag.sample, order, numTests);
+            bag = qdimsum.group.RandomBag(generators);
+            chain = qdimsum.group.Chain.randomConstruction(@() bag.sample, order, numTests);
         end
         
     end

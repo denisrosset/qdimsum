@@ -7,9 +7,8 @@ classdef Start < handle
     methods (Static)
         
         function start = emptyChain(n)
-            import qdimsum.*
-            start = Start;
-            start.next = Term(n);
+            start = qdimsum.group.Start;
+            start.next = qdimsum.group.Term(n);
         end
         
     end

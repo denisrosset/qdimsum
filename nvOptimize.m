@@ -74,6 +74,7 @@ function [objMax data timings] = nvOptimize(problem, monomials, method, settings
 %                          corresponding to kron(B, eye(d)), where B is a m x m matrix (m is the multiplicity) and
 %                          d is the representation dimension.
     import qdimsum.*
+    import qdimsum.group.*
     
     timings = struct;
     data = [];
