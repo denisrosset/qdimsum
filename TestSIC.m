@@ -1,7 +1,6 @@
 settings = NVSettings('yalmipSettings', sdpsettings('solver', 'mosek', 'verbose', 0), ...
                       'verbosityLevel', 1);
 tolerance = 1e-10;
-monomials = {'families' [] [1] [2]};
 
 d = 3;
 N = 4;
@@ -13,6 +12,8 @@ sSamples = [];
 for i = 1:size(arc, 1)
     rankCard = arc(i, :);
     problem = rp.problemInstance(rankCard);
+    monomials = qdimsum.Monomials.fromFamilies(problem, {[] [1] [2]}, ...
+                                               settings);
     relaxation = qdimsum.Relaxation(problem, monomials, settings);
     ns = relaxation.computeBasis;
     s = relaxation.computeSymmetrizedBasis;

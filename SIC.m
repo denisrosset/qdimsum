@@ -17,7 +17,7 @@ classdef SIC < NVProblem
             self.rankVec = rankVec;
             % y1 < y2
             self.Nys = N*(N-1)/2;
-            self.ys = SIC.computeY(N)
+            self.ys = SIC.computeY(N);
         end
 
         function types = operatorTypes(self)

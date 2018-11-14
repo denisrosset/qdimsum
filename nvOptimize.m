@@ -144,6 +144,8 @@ function [objMax data timings] = nvOptimize(problem, monomials, method, settings
     start = tic;
     if needsGroupDecomposition || settings.checkLevel > 0
         group = Group(problem.symmetryGroupGenerators);
+        f = @(g) Monomials.findMonomialAction(problem, monomials, g, settings);
+        monoGroup = group.monomorphism(f);
         gd = Chain.fromGenerators(problem.symmetryGroupGenerators).groupDecomposition;
         monoAction = Monomials.actionDecomposition(problem, gd, monomials, settings);
     end
@@ -155,11 +157,11 @@ function [objMax data timings] = nvOptimize(problem, monomials, method, settings
         switch needsBasis
           case UB_ISOTYPIC
             settings.log('Computing isotypic decomposition...');
-            [basis reps] = Reps.isotypicComponents(monoAction, settings);
+            [basis reps] = Reps.isotypicComponents(monoGroup, settings);
             repStructure = reps(1,:).*reps(2,:);
           case UB_IRREDUCIBLE
             settings.log('Computing irreducible decomposition...');
-            [basis repStructure] = Reps.irreducibleDecomposition(monoAction, settings);
+            [basis repStructure] = Reps.irreducibleDecomposition(monoGroup, settings);
         end
     end
 

@@ -14,29 +14,18 @@ classdef Relaxation < handle
     methods
     
         function n = nMonomials(self)
+        % Returns the number of elements in the monomials basis, i.e. the size of the moment matrix
             n = length(self.monomials);
         end
         
-        function self = Relaxation(problem, userMonomials, settings)
-            import qdimsum.*
-            switch userMonomials{1}
-              case 'npa'
-                level = userMonomials{2};
-                settings.log(sprintf('Computing monomials for NPA level %d', level));
-                monomials = Monomials.npa(problem, level, settings);
-              case 'families'
-                families = userMonomials(2:end);
-                familiesStr = cellfun(@(f) ['[' num2str(f) '],'], families, 'UniformOutput', false);
-                familiesStr = strcat(familiesStr{:});
-                familiesStr = familiesStr(1:end-1);
-                settings.log(['Computing monomials for families ' familiesStr]);
-                monomials = Monomials.families(problem, families, settings);
-              otherwise
-                monomials = userMonomials;
-            end
+        function self = Relaxation(problem, monomials, settings)
+        % Creates a relaxation for the given problem (NVProblem), with the given monomials
+        % and NVSettings
+        %
+        % TODO: bring help text from nvOptimize
             self.problem = problem;
             self.monomials = monomials;
-            self.operatorsGroup = Group(problem.symmetryGroupGenerators);
+            self.operatorsGroup = qdimsum.Group(problem.symmetryGroupGenerators);
             self.settings = settings;
         end
 
@@ -44,10 +33,11 @@ classdef Relaxation < handle
         % For a generalized permutation "g" on the operator variables, returns
         % the corresponding generalized permutation "h" on the monomials
             import qdimsum.*
-            h = Monomials.findMonomialAction(self.problem, self.monomials, g, self.settings);
+            h = Monomials.findMonomialAction(self.problem, self.monomials.indices, g, self.settings);
         end
         
         function G = monomialsGroup(self)
+        % Returns the group action on monomials
             import qdimsum.*
             if isequal(self.monomialsGroup_, [])
                 self.monomialsGroup_ = self.operatorsGroup.monomorphism(@(g) self.monomialAction(g));
@@ -59,20 +49,10 @@ classdef Relaxation < handle
         % Returns a sample
             X = self.problem.sampleOperators;
             K = self.problem.sampleStateKraus;
-            stateDim = size(K, 1);
-            krausRank = size(K, 2);
-            % compute monomials
-            nMonomials = length(self.monomials);
-            monos = zeros(stateDim, krausRank, nMonomials);
-            for j = 1:nMonomials
-                mono = K;
-                indices = self.monomials{j};
-                for k = length(indices):-1:1
-                    mono = X{indices(k)} * mono;
-                end
-                monos(:,:,j) = mono;
-            end
-            monos = reshape(monos, [stateDim*krausRank nMonomials]);
+            monos = self.monomials.computeKraus(X, K);
+            stateDim = size(monos, 1);
+            krausRank = size(monos, 2);
+            monos = reshape(monos, [stateDim*krausRank self.nMonomials]);
             chi = monos'*monos; % compute moment matrix
             if self.problem.forceReal
                 chi = real(chi);
@@ -90,23 +70,26 @@ classdef Relaxation < handle
         end
         
         function [samples objs] = computeBasis(self)
+        % Computes an affine basis of samples
             import qdimsum.*
             blockStructure = BlockStructure({1:self.nMonomials});
             sampleDim = blockStructure.dimension;
             samples = zeros(sampleDim, 0);
             objs = zeros(1, 0);
             chunkSize = self.settings.sampleChunkSize;
+            l = 0;
             while 1
-                l = 0;
+                % preallocate chunk
+                samples = [samples zeros(sampleDim, chunkSize)];
+                objs = [objs zeros(1, chunkSize)];
                 for i = 1:chunkSize
-                    samples = [samples zeros(sampleDim, chunkSize)];
-                    objs = [objs zeros(1, chunkSize)];
                     [chi obj] = self.sample;
                     sample = BlockStructure.matToVec(chi);
                     l = l + 1;
                     samples(:,l) = sample;
                     objs(l) = obj;
                 end
+                l = l + chunkSize;
                 r = rank(samples);
                 if r < l
                     break
@@ -123,17 +106,19 @@ classdef Relaxation < handle
             samples = zeros(sampleDim, 0);
             objs = zeros(1, 0);
             chunkSize = self.settings.sampleChunkSize;
+            l = 0;
             while 1
-                l = 0;
+                % preallocate chunk
+                samples = [samples zeros(sampleDim, chunkSize)];
+                objs = [objs zeros(1, chunkSize)];
                 for i = 1:chunkSize
-                    samples = [samples zeros(sampleDim, chunkSize)];
-                    objs = [objs zeros(1, chunkSize)];
                     [chi obj] = self.symmetrizedSample;
                     sample = BlockStructure.matToVec(chi);
                     l = l + 1;
                     samples(:,l) = sample;
                     objs(l) = obj;
                 end
+                l = l + chunkSize;
                 r = rank(samples);
                 if r < l
                     break

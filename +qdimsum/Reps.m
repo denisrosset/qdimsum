@@ -299,7 +299,7 @@ classdef Reps
             if length(runs) == length(runsSym)
                 type = 'R';
             else
-                error('No support for the complex or quaternionic case');
+                type = 'CQ';
             end
         end
         
