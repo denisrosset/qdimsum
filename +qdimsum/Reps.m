@@ -301,7 +301,6 @@ classdef Reps
             else
                 error('No support for the complex or quaternionic case');
             end
-            
         end
         
         function V = decomposeIsotypicRealType(sample1, sample2, dim, mult, colOrbit)

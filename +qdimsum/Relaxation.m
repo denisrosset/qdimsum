@@ -56,6 +56,7 @@ classdef Relaxation < handle
         end
 
         function [chi obj] = sample(self)
+        % Returns a sample
             X = self.problem.sampleOperators;
             K = self.problem.sampleStateKraus;
             stateDim = size(K, 1);
@@ -81,12 +82,65 @@ classdef Relaxation < handle
         end
         
         function [chi obj] = symmetrizedSample(self)
+        % Returns a sample symmetrized under the symmetry group
             import qdimsum.*
             [chi obj] = self.sample;
-            %chi1 = GenPerm.symmetrize(chi, self.monomialsGroup.decomposition);
-            %chi1 = (chi1 + chi1')/2; % to cater for possible rounding errors
             chi = self.monomialsGroup.phaseConfiguration.project(chi);
             chi = (chi + chi')/2; % to cater for possible rounding errors
+        end
+        
+        function [samples objs] = computeBasis(self)
+            import qdimsum.*
+            blockStructure = BlockStructure({1:self.nMonomials});
+            sampleDim = blockStructure.dimension;
+            samples = zeros(sampleDim, 0);
+            objs = zeros(1, 0);
+            chunkSize = self.settings.sampleChunkSize;
+            while 1
+                l = 0;
+                for i = 1:chunkSize
+                    samples = [samples zeros(sampleDim, chunkSize)];
+                    objs = [objs zeros(1, chunkSize)];
+                    [chi obj] = self.sample;
+                    sample = BlockStructure.matToVec(chi);
+                    l = l + 1;
+                    samples(:,l) = sample;
+                    objs(l) = obj;
+                end
+                r = rank(samples);
+                if r < l
+                    break
+                end
+            end
+            samples = samples(:,1:r);
+            objs = objs(1:r);
+        end
+
+        function [samples objs] = computeSymmetrizedBasis(self)
+            import qdimsum.*
+            blockStructure = BlockStructure({1:self.nMonomials});
+            sampleDim = blockStructure.dimension;
+            samples = zeros(sampleDim, 0);
+            objs = zeros(1, 0);
+            chunkSize = self.settings.sampleChunkSize;
+            while 1
+                l = 0;
+                for i = 1:chunkSize
+                    samples = [samples zeros(sampleDim, chunkSize)];
+                    objs = [objs zeros(1, chunkSize)];
+                    [chi obj] = self.symmetrizedSample;
+                    sample = BlockStructure.matToVec(chi);
+                    l = l + 1;
+                    samples(:,l) = sample;
+                    objs(l) = obj;
+                end
+                r = rank(samples);
+                if r < l
+                    break
+                end
+            end
+            samples = samples(:,1:r);
+            objs = objs(1:r);
         end
    
     end
