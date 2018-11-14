@@ -4,17 +4,13 @@ d = 5;
 % Test non symmetrized variant
 problem = CGLMP(d);
 families = {[] [1] [2] [1 2] [2 2]};
-monos = Monomials.families(problem, families, settings);
-chain = Chain.fromGenerators(problem.symmetryGroupGenerators);
-odec = chain.groupDecomposition;
-mdec = Monomials.actionDecomposition(problem, odec, monos, settings);
-nMonos = length(monos);
-x = chain.random;
-y = chain.random;
+relaxation = Relaxation(problem, {'families' families{:}}, settings);
+x = relaxation.operatorsGroup.randomElement;
+y = relaxation.operatorsGroup.randomElement;
 z = GenPerm.compose(x, y);
 
-xm = Monomials.findMonomialAction(problem, monos, x, settings);
-ym = Monomials.findMonomialAction(problem, monos, y, settings);
-zm = Monomials.findMonomialAction(problem, monos, z, settings);
+xm = relaxation.monomialAction(x);
+ym = relaxation.monomialAction(y);
+zm = relaxation.monomialAction(z);
 zm1 = GenPerm.compose(xm, ym);
 assert(isequal(zm, zm1));

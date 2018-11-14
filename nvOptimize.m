@@ -143,6 +143,8 @@ function [objMax data timings] = nvOptimize(problem, monomials, method, settings
 
     start = tic;
     if needsGroupDecomposition || settings.checkLevel > 0
+        group = Group(problem.symmetryGroupGenerators);
+        monoAction = 
         gd = Chain.fromGenerators(problem.symmetryGroupGenerators).groupDecomposition;
         monoAction = Monomials.actionDecomposition(problem, gd, monomials, settings);
     end

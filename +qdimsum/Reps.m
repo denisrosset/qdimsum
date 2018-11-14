@@ -4,7 +4,8 @@ classdef Reps
 
     methods (Static) % Helpers
         
-        function gdfo = groupDecompositionForOrbit(groupDecomposition, orbit)
+        function gdfo = groupDecompositionForOrbit(group, orbit)
+            groupDecomposition = group.decomposition;
             n = size(groupDecomposition{1}, 2);
             backIndex = zeros(n, 1);
             backIndex(orbit) = 1:length(orbit);
@@ -12,7 +13,7 @@ classdef Reps
             gdfo = cellfun(@(groupElements) computeBackIndex(groupElements(:, orbit)), groupDecomposition, 'UniformOutput', false);
         end
         
-        function [U reps] = irreducibleDecomposition(groupDecomposition, settings)
+        function [U reps] = irreducibleDecomposition(group, settings)
         % Given a generalized permutation group provided by the given decomposition, 
         % returns a change of basis matrix U such that
         %
@@ -20,20 +21,21 @@ classdef Reps
         %
         % with the structure given by the representation dimensions reps(1,:) and multiplicities reps(2,:)
             import qdimsum.*
+            groupDecomposition = group.decomposition;
             n = size(groupDecomposition{1}, 2);            
-            sample1 = Reps.sampleSymmetricMatrix(groupDecomposition);
-            sample2 = Reps.sampleSymmetricMatrix(groupDecomposition);
-            sample3 = Reps.sampleGenericMatrix(groupDecomposition);
+            sample1 = Reps.sampleSymmetricMatrix(group);
+            sample2 = Reps.sampleSymmetricMatrix(group);
+            sample3 = Reps.sampleGenericMatrix(group);
             if settings.checkLevel > 0
-                sample4 = Reps.sampleSymmetricMatrix(groupDecomposition);
+                sample4 = Reps.sampleSymmetricMatrix(group);
             else
                 sample4 = [];
             end
-            orbits = Reps.findOrbits(groupDecomposition, settings);
+            orbits = Reps.findOrbits(group, settings);
             nOrbits = length(orbits);
-            gdfo = cell(1, nOrbits);
+            gfo = cell(1, nOrbits);
             for i = 1:nOrbits
-                gdfo{i} = Reps.groupDecompositionForOrbit(groupDecomposition, orbits{i});
+                gfo{i} = group.restrictToOrbit(orbits{i});
             end
             [U reps colOrbit] = Reps.isotypicComponentsFromSamples(orbits, sample1, sample2, settings, sample4);
             shift = 0;
@@ -50,7 +52,7 @@ classdef Reps
                         if ~isempty(colRangeRep)
                             rowRange = orbits{i}; % which rows for the current orbit
                             UrepOrbit = U(rowRange, repRange(colRangeRep));
-                            UrepOrbit = Reps.refineIsotypicSubspace(gdfo{i}, UrepOrbit, settings);
+                            UrepOrbit = Reps.refineIsotypicSubspace(gfo{i}, UrepOrbit, settings);
                             Urep(rowRange, colRangeRep) = UrepOrbit;
                         end
                     end
@@ -127,23 +129,25 @@ classdef Reps
             red = blkdiag(blocks{:});
         end
 
-        function sample = sampleGenericMatrix(groupDecomposition)
+        function sample = sampleGenericMatrix(group)
         % Samples a real matrix that commutes with the given group action.
             import qdimsum.*
+            groupDecomposition = group.decomposition;
             n = size(groupDecomposition{1}, 2);
             sample = GenPerm.symmetrize(randn(n), groupDecomposition);
         end
         
-        function sample = sampleSymmetricMatrix(groupDecomposition)
+        function sample = sampleSymmetricMatrix(group)
         % Samples a real symmetric matrix (in the sense M = M') that additionally commutes with
         % the given group action.
             import qdimsum.*
+            groupDecomposition = group.decomposition;
             n = size(groupDecomposition{1}, 2);
             sample = GenPerm.symmetrize(Random.symmetricGaussian(n), groupDecomposition);
             sample = sample + sample';
         end
         
-        function [U reps fromOrbit] = isotypicComponents(groupDecomposition, settings)
+        function [U reps fromOrbit] = isotypicComponents(group, settings)
         % Finds the isotypic components of the (generalized) permutation representation afforded
         % by the given group decomposition.
         %
@@ -154,11 +158,11 @@ classdef Reps
         %
         % Note: does not try to split the group action into orbits, as irreducibleDecomposition does.
             import qdimsum.*
-            orbits = Reps.findOrbits(groupDecomposition, settings);
-            sample1 = Reps.sampleSymmetricMatrix(groupDecomposition);
-            sample2 = Reps.sampleSymmetricMatrix(groupDecomposition);
+            orbits = Reps.findOrbits(group, settings);
+            sample1 = Reps.sampleSymmetricMatrix(group);
+            sample2 = Reps.sampleSymmetricMatrix(group);
             if settings.checkLevel > 0
-                sample3 = Reps.sampleSymmetricMatrix(groupDecomposition);
+                sample3 = Reps.sampleSymmetricMatrix(group);
                 [U reps fromOrbit] = Reps.isotypicComponentsFromSamples(orbits, sample1, sample2, settings, sample3);
             else
                 [U reps fromOrbit] = Reps.isotypicComponentsFromSamples(orbits, sample1, sample2, settings);
@@ -250,7 +254,7 @@ classdef Reps
             end
         end
 
-        function refinedBasis = refineIsotypicSubspace(groupDecomposition, basis, settings)
+        function refinedBasis = refineIsotypicSubspace(group, basis, settings)
         % Refines the basis of an isotypic subspace; the basis is given by the column vectors
         % of "basis"
             import qdimsum.*
@@ -258,7 +262,7 @@ classdef Reps
             if size(basis, 1) == n
                 refinedBasis = eye(n);
             else
-                T = GenPerm.symmetrize(basis*Random.symmetricGaussian(n)*basis', groupDecomposition);
+                T = GenPerm.symmetrize(basis*Random.symmetricGaussian(n)*basis', group.decomposition);
                 T = T + T';
                 [refinedBasis, lambda] = eig(T);
                 lambda = diag(lambda);
@@ -344,31 +348,18 @@ classdef Reps
             end
         end
 
-        function orbits = findOrbits(groupDecomposition, settings)
+        function orbits = findOrbits(group, settings)
         % Returns the orbits of the given group acting on the integers 1...n
         % as a partition (see DisjointSetForest.toPartition)
         %
         % If 'settings' is provided, and settings.blockDiagOrbits = false,
         % a single orbit {[1 ... n]} is returned and has the effect of disabling
         % orbit handling
-            n = size(groupDecomposition{1}, 2); % domain size
             if nargin > 1 && ~settings.blockDiagOrbits
                 orbits = {1:n}; % disable orbit lookup
                 return
             end
-            dsf = qdimsum.group.DisjointSetForest(n);
-            for i = 1:length(groupDecomposition)
-                reps = groupDecomposition{i};
-                for j = 1:size(reps, 1)
-                    for k = 1:size(reps, 2)
-                        kImage = abs(reps(j, k));
-                        if k ~= kImage
-                            dsf.union(k, kImage);
-                        end
-                    end
-                end
-            end
-            orbits = dsf.toPartition;
+            orbits = group.permOrbits.orbits;
         end
         
         function nonZeroRanges = findBlocks(mask)

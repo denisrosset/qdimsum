@@ -13,6 +13,10 @@ classdef Relaxation < handle
     
     methods
     
+        function n = nMonomials(self)
+            n = length(self.monomials);
+        end
+        
         function self = Relaxation(problem, userMonomials, settings)
             import qdimsum.*
             switch userMonomials{1}
@@ -36,14 +40,17 @@ classdef Relaxation < handle
             self.settings = settings;
         end
 
+        function h = monomialAction(self, g)
+        % For a generalized permutation "g" on the operator variables, returns
+        % the corresponding generalized permutation "h" on the monomials
+            import qdimsum.*
+            h = Monomials.findMonomialAction(self.problem, self.monomials, g, self.settings);
+        end
+        
         function G = monomialsGroup(self)
             import qdimsum.*
             if isequal(self.monomialsGroup_, [])
-                f = @(g) Monomials.findMonomialAction(self.problem, ...
-                                                      self.monomials, ...
-                                                      g, ...
-                                                      self.settings);
-                self.monomialsGroup_ = self.operatorsGroup.monomorphism(f);
+                self.monomialsGroup_ = self.operatorsGroup.monomorphism(@(g) self.monomialAction(g));
             end
             G = self.monomialsGroup_;
         end
