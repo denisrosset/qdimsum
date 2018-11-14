@@ -351,13 +351,12 @@ classdef Reps
         % If 'settings' is provided, and settings.blockDiagOrbits = false,
         % a single orbit {[1 ... n]} is returned and has the effect of disabling
         % orbit handling
-            import qdimsum.*
             n = size(groupDecomposition{1}, 2); % domain size
             if nargin > 1 && ~settings.blockDiagOrbits
                 orbits = {1:n}; % disable orbit lookup
                 return
             end
-            dsf = DisjointSetForest(n);
+            dsf = qdimsum.group.DisjointSetForest(n);
             for i = 1:length(groupDecomposition)
                 reps = groupDecomposition{i};
                 for j = 1:size(reps, 1)

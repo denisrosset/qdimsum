@@ -1,56 +1,48 @@
 classdef PhaseConfiguration
     properties
-        n;        % matrix size
-        phase;    % phase array, containing roots of unity
-        orbits;   % cell array of orbits, each of size 2 x orbitSize
-                  % note: orbits are transposed compared to the Builders
-        index;    % index of the cell for each element, or 0 if element is zero
+        n;          % matrix size
+        phase;      % phase array, containing roots of unity
+                    %
+                    % The o-th orbit has indices between position
+                    % orbitStart(o) and orbitStart(o+1)-1
+                    % in the flat arrays orbitRow, orbitCol and orbitInd.
+                    % orbitInd corresponds to Matlab linear indexing of matrices.
+                    %
+        orbitStart; % start position of orbit indices for the o-th orbit (int32)
+        orbitRow;   % row indices of orbits, flat array (int32)
+        orbitCol;   % col indices of orbits, flat array (int32)
+        orbitInd;   % flat indices of orbits, flat array (int32)
+        index;      % index of the cell for each element, or 0 if element is zero
     end
     
     methods
         
-        function self = PhaseConfiguration(n, index, shift, order, orbits)
+        function self = PhaseConfiguration(n, phase, orbitStart, orbitRow, orbitCol, index)
             import qdimsum.group.PhaseConfiguration
-            self.n = n;
-            self.index = index;
-            self.phase = zeros(n, n);
-            for r = 1:n
-                for c = 1:n
-                    self.phase(r, c) = PhaseConfiguration.rootOfUnity(shift(r, c), order);
-                end
-            end
-            self.orbits = orbits;
+            self.n = double(n);
+            self.phase = double(phase);
+            self.orbitStart = int32(orbitStart);
+            self.orbitRow = int32(orbitRow);
+            self.orbitCol = int32(orbitCol);
+            self.orbitInd = int32(orbitRow + n * (orbitCol - 1));
+            self.index = double(index);
         end
         
         function m = nOrbits(self)
         % Returns the number of orbits
-            m = length(self.orbits);
+            m = length(self.orbitStart) - 1;
         end
-                
-        function M1 = project(self, M)
-            n = self.n;
-            M1 = zeros(n, n);
-            for i = 1:length(self.orbits)
-                o = self.orbits{i};
-                lini = o(1,:) + n*(o(2,:)-1);
-                f = length(o);
-                % undo the phases and average
-                s = dot(M(lini), conj(self.phase(lini)))/f;
-                % put back the phases
-                M(lini) = s * self.phase(lini);
-            end
-        end
-        
+                        
         function m = orbitSize(self, o)
         % Returns the size of the o-th orbit
-            m = length(self.orbits{o});
+            m = double(self.orbitStart(o + 1) - self.orbitStart(o));
         end
         
         function t = orbitTranspose(self, o)
         % Returns the index of the transpose of this orbit, i.e. the orbit
         % corresponding to {(j,i) for all (i,j) in the o-th orbit}
-            orbit = self.orbits{o};
-            t = self.index(orbit(1, 1), orbit(2, 1));
+            i = self.orbitStart(o);
+            t = self.index(self.orbitRow(i), self.orbitCol(i));
         end
         
         function t = orbitTransposeScalar(self, o, s)
@@ -60,23 +52,34 @@ classdef PhaseConfiguration
         % Enables 
         % setOrbit(M, o, s)
         % setOrbit(M, orbitTranspose(o), orbitTransposeScalar(o, s))
-            orbit = self.orbits{o};
-            r = orbit(1, 1);
-            c = orbit(2, 1);
+            i = self.orbitStart(o);
+            r = self.orbitRow(i);
+            c = self.orbitCol(i);
             t = s / self.phase(r, c) * self.phase(c, r);
+        end
+        
+        function M1 = project(self, M)
+            n = self.n;
+            M1 = zeros(n, n);
+            for o = 1:self.nOrbits
+                M1 = self.setOrbit(M1, o, self.getOrbitAverage(M, o));
+            end
+        end
+
+        function s = getOrbitAverage(self, M, o)
+            linIndices = self.orbitInd(self.orbitStart(o):self.orbitStart(o+1)-1);
+            s = M(linIndices)' * conj(self.phase(linIndices))/self.orbitSize(o);
         end
         
         function M = setOrbit(self, M, o, s)
         % Sets all elements of the o-th orbit in the matrix M to the value s
-            orbit = self.orbits{o};
-            linIndices = orbit(1,:) + self.n*(orbit(2,:)-1);
-            phases = 1 - 2*self.phase(linIndices);
-            M(linIndices) = phases * s;
+            linIndices = self.orbitInd(self.orbitStart(o):self.orbitStart(o+1)-1);
+            M(linIndices) = self.phase(linIndices) * s;
         end
         
         function b = isOrbitDiagonal(self, o)
-            orbit = self.orbits{o};
-            b = (orbit(1, 1) == orbit(2, 1)); % if the first element is diagonal, all elements are diagonal 
+            i = self.orbitStart(o);
+            b = (self.orbitRow(i) == self.orbitCol(i)); % if the first element is diagonal, all elements are diagonal 
         end
         
         function b = isOrbitSelfTranspose(self, o)
@@ -181,26 +184,37 @@ classdef PhaseConfiguration
     end
     
     methods (Static)
+
+        function phase = computePhase(shift, order)
+            if order == 2
+                phase = 1 - 2*shift;
+            else
+                phase = zeros(n, n);
+                for r = 1:n
+                    for c = 1:n
+                        phase(r, c) = PhaseConfiguration.rootOfUnity(shift(r, c), order);
+                    end
+                end
+            end
+        end
         
         function C = fromGenPermMatlab(generators)
+            import qdimsum.group.*;
             n = size(generators, 2);
-            B = qdimsum.group.PhaseConfigurationBuilder.fromGenPerm(generators);
+            B = PhaseConfigurationBuilder.fromGenPerm(generators);
             orbits = cellfun(@(x) x', B.orbits, 'UniformOutput', false);
-            C = qdimsum.group.PhaseConfiguration(n, B.index, B.phase, 2, orbits);
+            phase = PhaseConfiguration.computePhase(B.shift, B.order);
+            C = PhaseConfiguration(n, phase, B.orbitStart, B.orbitRow, B.orbitCol)
         end
         
         function C = fromGenPermJava(generators)
+            import qdimsum.group.*;
             n = size(generators, 2);
             % convert 1-based indices to 0-based indices
             generators(generators > 0) = generators(generators > 0) - 1;
             B = com.faacets.qdimsum.PhaseConfigurationBuilder.fromGenPerm(n, generators);
-            orbits = cell(1, B.nOrbits);
-            for i = 1:B.nOrbits
-                orbits{i} = double(B.getOrbit(i - 1))' + 1;
-            end
-            index = double(B.index) + 1;
-            phase = double(B.phase);
-            C = qdimsum.group.PhaseConfiguration(n, index, phase, 2, orbits);
+            phase = PhaseConfiguration.computePhase(double(B.shift), double(B.order));
+            C = PhaseConfiguration(n, phase, B.orbitStart + 1, B.orbitRow + 1, B.orbitCol + 1, B.index + 1);
         end
         
         function C = fromGenPerm(generators)

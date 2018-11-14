@@ -34,10 +34,11 @@ classdef PhaseConfigurationBuilder < handle
     
     properties
         n;         % matrix size
-        maxPhase;  % maximal phase
+        shift;     % phase shift of size n x n, 0 ... order-1
+        order;     % order of the root of unity generating the
+                   % group of phases
         parentRow; % parent row index of size n x n
         parentCol; % parent col index of size n x n
-        phase;     % phase index of size n x n, 0 ... maxPhase-1
         size;      % size of cell, n x n
         nOrbits;   % number of orbits
         zr;        % (zr, zc) is the root corresponding to
@@ -45,7 +46,11 @@ classdef PhaseConfigurationBuilder < handle
         
         % Properties computed by "computeOrbits"
         index;     % cell index,   n x n
-        orbits;    % cell array of orbits of size orbitSize x 2
+                   
+        % orbits
+        orbitStart;
+        orbitRow;
+        orbitCol;
     end
     
     methods (Static)
@@ -71,12 +76,12 @@ classdef PhaseConfigurationBuilder < handle
     
     methods
         
-        function self = PhaseConfigurationBuilder(n, maxPhase)
+        function self = PhaseConfigurationBuilder(n, order)
             self.n = n;
-            self.maxPhase = maxPhase;
+            self.shift = zeros(n, n);
+            self.order = order;
             self.parentRow = zeros(n, n);
             self.parentCol = zeros(n, n);
-            self.phase = zeros(n, n);
             self.size = ones(n, n);
             self.index = zeros(n, n);
             self.nOrbits = n * n;
@@ -89,7 +94,7 @@ classdef PhaseConfigurationBuilder < handle
         end
         
         function computeOrbits(self)
-            self.orbits = cell(1, self.nOrbits);
+            orbits = cell(1, self.nOrbits);
             orbitIndex = ones(1, self.nOrbits);
             orbit = 1;
             for xr = 1:self.n
@@ -100,47 +105,51 @@ classdef PhaseConfigurationBuilder < handle
                         if self.index(xr0, xc0) == 0
                             % new orbit
                             self.index(xr0, xc0) = orbit;
-                            self.orbits{orbit} = zeros(self.size(xr0, xc0), 2);
+                            orbits{orbit} = zeros(self.size(xr0, xc0), 2);
                             orbit = orbit + 1;
                         end
                         o = self.index(xr0, xc0);
                         self.index(xr, xc) = o;
-                        orb = self.orbits{o};
+                        orb = orbits{o};
                         orb(orbitIndex(o), :) = [xr xc];
-                        self.orbits{o} = orb;
+                        orbits{o} = orb;
                         orbitIndex(o) = orbitIndex(o) + 1;
                     end
                 end
             end
+            self.orbitRow = [];
+            self.orbitCol = [];
+            self.orbitStart = [];
+            for o = 1:self.nOrbits
+                orbit = orbits{o};
+                self.orbitStart = [self.orbitStart length(self.orbitRow)];
+                self.orbitRow = [self.orbitRow orbit(1, :)];
+                self.orbitCol = [self.orbitCol orbit(2, :)];
+            end
+            self.orbitStart = [self.orbitStart self.n*self.n];
         end
                   
         % Finds the representative of the cell to which (xr, xc) belongs
         % and returns the representative (yr, yc) and the multiplicative sign
-        % such that M(xr, xc) = M(yr, yc) * rootOfUnity(yp, maxPhase)
+        % such that M(xr, xc) = M(yr, yc) * phase(yp, order)
         function [yr yc p] = find(self, xr, xc)
             p = 0;
             while 1
                 % path splitting variant
                 yr = self.parentRow(xr, xc);
                 yc = self.parentCol(xr, xc);
-                yp = self.phase(xr, xc);
+                yp = self.shift(xr, xc);
                 if (xr == yr) && (xc == yc)
                     % x.parent == x
                     return
                 end
                 self.parentRow(xr, xc) = self.parentRow(yr, yc);
                 self.parentCol(xr, xc) = self.parentCol(yr, yc);
-                np = yp + self.phase(yr, yc);
-                if np >= self.maxPhase
-                    np = np - self.maxPhase;
-                end
-                self.phase(xr, xc) = np;
+                np = self.normalizeShift(yp + self.shift(yr, yc));
+                self.shift(xr, xc) = np;
                 xr = yr;
                 xc = yc;
-                p = p + yp;
-                if p >= self.maxPhase
-                    p = p - self.maxPhase;
-                end
+                p = self.normalizeShift(p + yp);
             end
         end
         
@@ -152,25 +161,25 @@ classdef PhaseConfigurationBuilder < handle
             end
         end
         
-        function mergeTo(self, xr0, xc0, yr0, yc0, phase)
+        function mergeTo(self, xr0, xc0, yr0, yc0, shift)
         % Merge the root (xr0, xc0) to (yr0, yc0)
-        % so that M(xr0, xc0) = M(yr0, yc0) * phase
+        % so that M(xr0, xc0) = M(yr0, yc0) * phase(shift, order)
         % By convention, we require (xr0, xc0) > (yr0, yc0)
             assert(xr0 ~= yr0 || xc0 ~= yc0);
             self.parentRow(xr0, xc0) = yr0;
             self.parentCol(xr0, xc0) = yc0;
-            self.phase(xr0, xc0) = phase;
+            self.shift(xr0, xc0) = shift;
             self.size(yr0, yc0) = self.size(yr0, yc0) + self.size(xr0, xc0);
             self.size(xr0, xc0) = 0;
             self.nOrbits = self.nOrbits - 1;
         end
         
-        function phase = normalizePhase(self, phase)
-            while phase < 0
-                phase = phase + self.maxPhase;
+        function shift = normalizeShift(self, shift)
+            while shift < 0
+                shift = shift + self.order;
             end
-            while phase >= self.maxPhase
-                phase = phase - self.maxPhase;
+            while shift >= self.order
+                shift = shift - self.order;
             end
         end
         
@@ -185,27 +194,27 @@ classdef PhaseConfigurationBuilder < handle
         end
         
         % Merges the sets from which (xr, xc) and (yr, yc) are members
-        % with a phase difference such that M(xr, xc) = M(yr, yc) * rootOfUnity(p, maxPhase)
+        % with a phase difference such that M(xr, xc) = M(yr, yc) * phase(p, order)
         function union(self, xr, xc, yr, yc, p)
             [xr0 xc0 xp0] = self.find(xr, xc);
             [yr0 yc0 yp0] = self.find(yr, yc);
             % phase difference between roots, i.e.
-            % M(xr0, xc0) = M(yr0, yc0) * rootOfUnity(p0, maxPhase)
-            p0 = self.normalizePhase(yp0 + p - xp0);
+            % M(xr0, xc0) = M(yr0, yc0) * phase(p0, order)
+            p0 = self.normalizeShift(yp0 + p - xp0);
             if (xr0 == yr0 && xc0 == yc0 && p0 ~= 0)
                 % new zero element discovered
                 if self.zr == 0 || self.zc == 0
                     % no zero element known until now
                     self.zr = xr0;
                     self.zc = xc0;
-                    self.phase(self.zr, self.zc) = 0;
+                    self.shift(self.zr, self.zc) = 0;
                     % the zero orbit does not count
                     self.nOrbits = self.nOrbits - 1;
                     return
                 else
                     % zero element present, so merge the current cell
                     % with the zero cell
-                    salf.phase(xr0, xc0) = 0;
+                    salf.shift(xr0, xc0) = 0;
                     switch self.compareIndices(self.zr, self.zc, xr0, xc0)
                       case -1
                         % the zero representative stays the same
@@ -220,7 +229,7 @@ classdef PhaseConfigurationBuilder < handle
             else
                 switch self.compareIndices(xr0, xc0, yr0, yc0)
                   case -1
-                    self.mergeTo(yr0, yc0, xr0, xc0, self.normalizePhase(-p0));
+                    self.mergeTo(yr0, yc0, xr0, xc0, self.normalizeShift(-p0));
                   case 1
                     self.mergeTo(xr0, xc0, yr0, yc0, p0);
                 end

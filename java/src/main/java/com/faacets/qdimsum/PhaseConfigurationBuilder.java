@@ -1,9 +1,5 @@
 package com.faacets.qdimsum;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 /** See Matlab version in package qdimsum.group.PhaseConfigurationBuilder
  *
  * This version uses 0-based indices, and encodes a sign flip by storing
@@ -13,20 +9,18 @@ import java.util.List;
 public class PhaseConfigurationBuilder {
 
     public int n;
-    public int maxPhase;
+    public int[][] shift;
+    public int order;
     public int[][] parentRow;
     public int[][] parentCol;
-    public int[][] phase;
     public int[][] size;
     public int[][] index;
-    public int[][][] orbits;
     public int nOrbits;
+    public int[] orbitStart;
+    public int[] orbitRow;
+    public int[] orbitCol;
     public int zr;
     public int zc;
-
-    public int[][] getOrbit(int o) {
-        return orbits[o];
-    }
 
     public static PhaseConfigurationBuilder fromGenPerm(int n, int[][] generators) {
         PhaseConfigurationBuilder b = new PhaseConfigurationBuilder(n, 2);
@@ -53,8 +47,8 @@ public class PhaseConfigurationBuilder {
     }
 
     public void computeOrbits() {
-        orbits = new int[nOrbits][][];
-        int[] orbitIndex = new int[nOrbits];
+        int [][][] orbits = new int[nOrbits][][];
+        int[] orbitIndex = new int[nOrbits + 1];
         int orbit = 0;
         int[] x0 = new int[3];
         for (int xr = 0; xr < n; xr ++) {
@@ -67,24 +61,37 @@ public class PhaseConfigurationBuilder {
                     if (index[xr0][xc0] == -1) {
                         // new orbit
                         index[xr0][xc0] = orbit;
-                        orbits[orbit] = new int[size[xr0][xc0]][];
+                        orbits[orbit] = new int[][] { new int[size[xr0][xc0]], new int[size[xr0][xc0]] };
                         orbit ++;
                     }
                     int o = index[xr0][xc0];
                     index[xr][xc] = o;
-                    orbits[o][orbitIndex[o]] = new int[] { xr, xc };
+                    orbits[o][0][orbitIndex[o]] = xr;
+                    orbits[o][1][orbitIndex[o]] = xc;
                     orbitIndex[o] ++;
                 }
             }
         }
+        orbitStart = new int[nOrbits+1];
+        orbitRow = new int[n*n];
+        orbitCol = new int[n*n];
+        int i = 0;
+        for (int o = 0; o < nOrbits; o ++) {
+            orbitStart[o] = i;
+            int orbitSize = orbits[o][0].length;
+            System.arraycopy(orbits[o][0], 0, orbitRow, i, orbitSize);
+            System.arraycopy(orbits[o][1], 0, orbitCol, i, orbitSize);
+            i += orbitSize;
+        }
+        orbitStart[nOrbits] = n*n;
     }
 
     public PhaseConfigurationBuilder(int _n, int _maxPhase) {
         n = _n;
-        maxPhase = _maxPhase;
+        order = _maxPhase;
         parentRow = new int[n][];
         parentCol = new int[n][];
-        phase = new int[n][];
+        shift = new int[n][];
         size = new int[n][];
         index = new int[n][];
         nOrbits = n * n;
@@ -93,7 +100,7 @@ public class PhaseConfigurationBuilder {
         for(int r = 0; r < n; r ++) {
             parentRow[r] = new int[n];
             parentCol[r] = new int[n];
-            phase[r] = new int[n];
+            shift[r] = new int[n];
             size[r] = new int[n];
             index[r] = new int[n];
             for(int c = 0; c < n; c ++) {
@@ -107,15 +114,15 @@ public class PhaseConfigurationBuilder {
 
     public int phaseAdd(int x, int y) {
         int r = x + y;
-        if (r >= maxPhase)
-            r -= maxPhase;
+        if (r >= order)
+            r -= order;
         return r;
     }
 
     public int phaseSub(int x, int y) {
         int r = x - y;
         if (r < 0)
-            r += maxPhase;
+            r += order;
         return r;
     }
 
@@ -123,19 +130,19 @@ public class PhaseConfigurationBuilder {
         if (p == 0)
             return p;
         else
-            return maxPhase - p;
+            return order - p;
     }
 
     /** Finds the representative of the cell to which (xr, xc) belongs
      * and returns the representative (yr, yc) and the multiplicative sign
-     * such that M(xr, xc) = M(yr, yc) * rootOfUnity(yp, maxPhase)
+     * such that M(xr, xc) = M(yr, yc) * rootOfUnity(yp, order)
      */
     public void find(int xr, int xc, int[] out) {
         int p = 0;
         while (true) {
             int yr = parentRow[xr][xc];
             int yc = parentCol[xr][xc];
-            int yp = phase[xr][xc];
+            int yp = shift[xr][xc];
             if (xr == yr && xc == yc) {
                 out[0] = yr;
                 out[1] = yc;
@@ -144,7 +151,7 @@ public class PhaseConfigurationBuilder {
             }
             parentRow[xr][xc] = parentRow[yr][yc];
             parentCol[xr][xc] = parentCol[yr][yc];
-            phase[xr][xc] = phaseAdd(yp, phase[yr][yc]);
+            shift[xr][xc] = phaseAdd(yp, shift[yr][yc]);
             xr = yr;
             xc = yc;
             p = phaseAdd(p, yp);
@@ -169,22 +176,22 @@ public class PhaseConfigurationBuilder {
     }
 
     /** Merges the root (xr0, xc0) to (yr0, yc0)
-     * so that M(xr0, xc0) = M(yr0, yc0) * rootOfUnity(p, maxPhase)
+     * so that M(xr0, xc0) = M(yr0, yc0) * rootOfUnity(p, order)
      * By convention, we require (xr0, xc0) > (yr0, yc0)
      */
      public void mergeTo(int xr0, int xc0, int yr0, int yc0, int p) {
          assert(xr0 != yr0 || xc0 != yc0);
          parentRow[xr0][xc0] = yr0;
          parentCol[xr0][xc0] = yc0;
-         phase[xr0][xc0] = p;
+         shift[xr0][xc0] = p;
          size[yr0][yc0] += size[xr0][xc0];
          size[xr0][xc0] = 0;
          nOrbits -= 1;
      }
 
     /** Merges the sets from which (xr, xc) and (yr, yc) are members
-     * with a phase difference such that
-     * M(xr, xc) = M(yr, yc) * rootOfUnity(p, maxPhase)
+     * with a shift difference such that
+     * M(xr, xc) = M(yr, yc) * rootOfUnity(p, order)
      */
     public void union(int xr, int xc, int yr, int yc, int p) {
         int[] x0 = new int[3];
@@ -197,8 +204,8 @@ public class PhaseConfigurationBuilder {
         int yr0 = y0[0];
         int yc0 = y0[1];
         int yp0 = y0[2];
-        // phase difference between roots, i.e.
-        // M(xr0, xc0) = M(yr0, yc0) * rootOfUnity(p0, maxPhase)
+        // shift difference between roots, i.e.
+        // M(xr0, xc0) = M(yr0, yc0) * rootOfUnity(p0, order)
         int p0 = phaseSub(phaseAdd(p, yp0), xp0);
 
         // is our cell zero?
@@ -208,11 +215,11 @@ public class PhaseConfigurationBuilder {
                 // no zero element known until now
                 zr = xr0;
                 zc = xc0;
-                phase[zr][zc] = 0;
+                shift[zr][zc] = 0;
                 nOrbits --; // the zero orbit does not count
             } else {
                 // zero element present
-                phase[xr0][xc0] = 0;
+                shift[xr0][xc0] = 0;
                 switch (compareIndices(zr, zc, xr0, xc0)) {
                     case -1:
                         // the zero representative stays the same

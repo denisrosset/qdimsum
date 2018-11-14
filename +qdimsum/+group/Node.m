@@ -24,10 +24,6 @@ classdef Node < qdimsum.group.Chain
             self.ownStrongGenerators = zeros(0, n);
         end
        
-        function l = length_(self, acc)
-            l = self.next.length_(acc + 1);
-        end
-        
         function l = orbitSize(self)
             l = length(self.orbit);
         end
@@ -35,16 +31,7 @@ classdef Node < qdimsum.group.Chain
         function r = randomU(self)
             r = self.u(randi(self.orbitSize), :);
         end
-        
-        function r = random_(self, acc)
-            import qdimsum.*
-            r = self.next.random_(GenPerm.compose(acc, self.randomU));
-        end
-        
-        function o = order_(self, acc)
-            o = self.next.order_(acc.multiply(java.math.BigInteger(self.orbitSize)));
-        end
-        
+                
         function i = orbitIndex(self, b)
         % Returns index of orbit element, or 0 if not found
             i = ismembc2(b, self.orbit);
@@ -59,10 +46,6 @@ classdef Node < qdimsum.group.Chain
             else
                 self.next.sift(GenPerm.compose(self.uInv(i,:), remaining));
             end            
-        end
-        
-        function s = strongGeneratingSet_(self, acc)
-            s = self.next.strongGeneratingSet_(vertcat(acc, self.ownStrongGenerators));
         end
         
         function addOwnStrongGenerator(self, g)
@@ -105,10 +88,6 @@ classdef Node < qdimsum.group.Chain
             b = false;
         end
         
-        function gd = groupDecomposition_(self, acc)
-            gd = self.next.groupDecomposition_(horzcat(acc, {self.u}));
-        end
-
     end
     
 end

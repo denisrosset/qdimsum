@@ -48,8 +48,8 @@ classdef Relaxation < handle
             G = self.monomialsGroup_;
         end
 
-         function chi = sample(self)
-             X = self.problem.sampleOperators;
+        function [chi obj] = sample(self)
+            X = self.problem.sampleOperators;
             K = self.problem.sampleStateKraus;
             stateDim = size(K, 1);
             krausRank = size(K, 2);
@@ -70,30 +70,17 @@ classdef Relaxation < handle
                 chi = real(chi);
             end
             chi = (chi + chi')/2; % to cater for possible rounding errors
+            obj = self.problem.computeObjective(X, K);
         end
         
-        function chi = sampleAndSymmetrize(self)
+        function [chi obj] = symmetrizedSample(self)
             import qdimsum.*
-            chi = self.sample;
-            chi = GenPerm.symmetrize(chi, self.monomialsGroup.decomposition);
+            [chi obj] = self.sample;
+            %chi1 = GenPerm.symmetrize(chi, self.monomialsGroup.decomposition);
+            %chi1 = (chi1 + chi1')/2; % to cater for possible rounding errors
+            chi = self.monomialsGroup.phaseConfiguration.project(chi);
+            chi = (chi + chi')/2; % to cater for possible rounding errors
         end
-% $$$         
-% $$$         function [M P] = phasePartition(self)
-% $$$             C = qdimsum.PhaseConfiguration.fromGenPerm(length(self.monomials), self.monoGenerators);
-% $$$             [M P] = C.toPhasePartition;
-% $$$         end
-% $$$         
-% $$$         function c = javaPC(self)
-% $$$             G = self.monoGenerators;
-% $$$             G(G > 0) = G(G > 0) - 1;
-% $$$             c = com.faacets.jqdimsum.PhaseConfiguration.fromGenPerm(length(self.monomials), G);
-% $$$         end
-% $$$         
-% $$$         function chi = symmetrize(self, chi)
-% $$$             chi = qdimsum.GenPerm.symmetrize(chi, self.monoAction);
-% $$$             chi = (chi + chi')/2; % to cater for possible rounding errors
-% $$$         end
-% $$$         
+   
     end
-    
 end
