@@ -21,10 +21,10 @@ classdef PhaseConfiguration
             import qdimsum.group.PhaseConfiguration
             self.n = double(n);
             self.phase = double(phase);
-            self.orbitStart = int32(orbitStart);
-            self.orbitRow = int32(orbitRow);
-            self.orbitCol = int32(orbitCol);
-            self.orbitInd = int32(orbitRow + n * (orbitCol - 1));
+            self.orbitStart = int32(orbitStart(:)');
+            self.orbitRow = int32(orbitRow(:)');
+            self.orbitCol = int32(orbitCol(:)');
+            self.orbitInd = self.orbitRow + n * (self.orbitCol - 1);
             self.index = double(index);
         end
         
@@ -42,7 +42,7 @@ classdef PhaseConfiguration
         % Returns the index of the transpose of this orbit, i.e. the orbit
         % corresponding to {(j,i) for all (i,j) in the o-th orbit}
             i = self.orbitStart(o);
-            t = self.index(self.orbitRow(i), self.orbitCol(i));
+            t = self.index(self.orbitCol(i), self.orbitRow(i));
         end
         
         function t = orbitTransposeScalar(self, o, s)
@@ -202,9 +202,8 @@ classdef PhaseConfiguration
             import qdimsum.group.*;
             n = size(generators, 2);
             B = PhaseConfigurationBuilder.fromGenPerm(generators);
-            orbits = cellfun(@(x) x', B.orbits, 'UniformOutput', false);
             phase = PhaseConfiguration.computePhase(B.shift, B.order);
-            C = PhaseConfiguration(n, phase, B.orbitStart, B.orbitRow, B.orbitCol)
+            C = PhaseConfiguration(n, phase, B.orbitStart, B.orbitRow, B.orbitCol, B.index);
         end
         
         function C = fromGenPermJava(generators)

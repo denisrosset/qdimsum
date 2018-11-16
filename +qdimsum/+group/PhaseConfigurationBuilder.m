@@ -105,13 +105,13 @@ classdef PhaseConfigurationBuilder < handle
                         if self.index(xr0, xc0) == 0
                             % new orbit
                             self.index(xr0, xc0) = orbit;
-                            orbits{orbit} = zeros(self.size(xr0, xc0), 2);
+                            orbits{orbit} = zeros(2, self.size(xr0, xc0));
                             orbit = orbit + 1;
                         end
                         o = self.index(xr0, xc0);
                         self.index(xr, xc) = o;
                         orb = orbits{o};
-                        orb(orbitIndex(o), :) = [xr xc];
+                        orb(:, orbitIndex(o)) = [xr xc];
                         orbits{o} = orb;
                         orbitIndex(o) = orbitIndex(o) + 1;
                     end
@@ -120,13 +120,15 @@ classdef PhaseConfigurationBuilder < handle
             self.orbitRow = [];
             self.orbitCol = [];
             self.orbitStart = [];
+            start = 1;
             for o = 1:self.nOrbits
                 orbit = orbits{o};
-                self.orbitStart = [self.orbitStart length(self.orbitRow)];
+                self.orbitStart = [self.orbitStart start];
                 self.orbitRow = [self.orbitRow orbit(1, :)];
                 self.orbitCol = [self.orbitCol orbit(2, :)];
+                start = start + length(orbit(1, :));
             end
-            self.orbitStart = [self.orbitStart self.n*self.n];
+            self.orbitStart = [self.orbitStart start];
         end
                   
         % Finds the representative of the cell to which (xr, xc) belongs

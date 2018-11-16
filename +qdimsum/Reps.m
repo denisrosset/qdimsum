@@ -21,8 +21,7 @@ classdef Reps
         %
         % with the structure given by the representation dimensions reps(1,:) and multiplicities reps(2,:)
             import qdimsum.*
-            groupDecomposition = group.decomposition;
-            n = size(groupDecomposition{1}, 2);            
+            n = group.n;
             sample1 = Reps.sampleSymmetricMatrix(group);
             sample2 = Reps.sampleSymmetricMatrix(group);
             sample3 = Reps.sampleGenericMatrix(group);
@@ -35,7 +34,7 @@ classdef Reps
             nOrbits = length(orbits);
             gfo = cell(1, nOrbits);
             for i = 1:nOrbits
-                gfo{i} = group.restrictToOrbit(orbits{i});
+                gfo{i} = group.permOrbitRestriction(i);
             end
             [U reps colOrbit] = Reps.isotypicComponentsFromSamples(orbits, sample1, sample2, settings, sample4);
             shift = 0;
@@ -59,21 +58,23 @@ classdef Reps
                 else
                     Urep = U(:, repRange);
                 end
-                if m > 1
-                    genSample = Urep'*sample3*Urep;
-                    switch Reps.identifyRepresentationType(genSample, settings)
-                      case 'R'
+                genSample = Urep'*sample3*Urep;
+                switch Reps.identifyRepresentationType(genSample, settings)
+                  case 'R'
+                    if m > 1
                         t1 = Urep'*sample1*Urep;
                         t2 = Urep'*sample2*Urep;
                         t1 = t1 + t1';
                         t2 = t2 + t2';
                         V = Reps.decomposeIsotypicRealType(t1, t2, d, m, colOrbitRep);
                         Urep = Urep * V;
-                      case 'C'
-                        error('Complex representations are not supported');
-                      case 'H'
-                        error('Quaternionic representations are not supported');
                     end
+                  case 'C'
+                    error('Complex representations are not supported');
+                  case 'H'
+                    error('Quaternionic representations are not supported');
+                  otherwise
+                    error('Nonreal representations are not supported');
                 end
                 U(:, repRange) = Urep;
                 shift = shift + d*m;
@@ -131,20 +132,14 @@ classdef Reps
 
         function sample = sampleGenericMatrix(group)
         % Samples a real matrix that commutes with the given group action.
-            import qdimsum.*
-            groupDecomposition = group.decomposition;
-            n = size(groupDecomposition{1}, 2);
-            sample = GenPerm.symmetrize(randn(n), groupDecomposition);
+            sample = group.phaseConfiguration.sampleRealGaussian;
         end
         
         function sample = sampleSymmetricMatrix(group)
         % Samples a real symmetric matrix (in the sense M = M') that additionally commutes with
         % the given group action.
             import qdimsum.*
-            groupDecomposition = group.decomposition;
-            n = size(groupDecomposition{1}, 2);
-            sample = GenPerm.symmetrize(Random.symmetricGaussian(n), groupDecomposition);
-            sample = sample + sample';
+            sample = group.phaseConfiguration.sampleSymmetricGaussian;
         end
         
         function [U reps fromOrbit] = isotypicComponents(group, settings)
@@ -262,7 +257,7 @@ classdef Reps
             if size(basis, 1) == n
                 refinedBasis = eye(n);
             else
-                T = GenPerm.symmetrize(basis*Random.symmetricGaussian(n)*basis', group.decomposition);
+                T = group.phaseConfiguration.project(basis*Random.symmetricGaussian(n)*basis');
                 T = T + T';
                 [refinedBasis, lambda] = eig(T);
                 lambda = diag(lambda);
@@ -275,6 +270,16 @@ classdef Reps
                     assert(abs(lambda(n + 1)) < settings.blockDiagEigTol, ...
                            'The provided approximate basis does not match an isotypic component');                
                 end
+            end
+        end
+        
+        function m = findMultiplicity(values, settings)
+            runs = qdimsum.Reps.findRuns(values, settings);
+            sizes = cellfun(@(x) length(x), runs);
+            m = sizes(1);
+            n = length(sizes);
+            if ~all(sizes == m*ones(1, n))
+                m = 0;
             end
         end
 
@@ -299,7 +304,7 @@ classdef Reps
             if length(runs) == length(runsSym)
                 type = 'R';
             else
-                type = 'CQ';
+                type = 'CH';
             end
         end
         
@@ -346,7 +351,7 @@ classdef Reps
                 end
             end
         end
-
+        
         function orbits = findOrbits(group, settings)
         % Returns the orbits of the given group acting on the integers 1...n
         % as a partition (see DisjointSetForest.toPartition)

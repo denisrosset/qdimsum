@@ -50,7 +50,7 @@ classdef SIC < NVProblem
             K = eye(d);
         end
         
-        function obj = computeObjective(self, X, tau)
+        function obj = computeObjective(self, X, K)
             d = self.d;
             N = self.N;
             rho = X(1:N);
@@ -59,8 +59,8 @@ classdef SIC < NVProblem
             for i = 1:self.Nys
                 y1 = self.ys(i, 1);
                 y2 = self.ys(i, 2);
-                obj = obj + trace(tau * rho{y1} * M{i});
-                obj = obj - trace(tau * rho{y2} * M{i});
+                obj = obj + trace(K * rho{y1} * M{i});
+                obj = obj - trace(K * rho{y2} * M{i});
             end
             obj = real(obj);
         end

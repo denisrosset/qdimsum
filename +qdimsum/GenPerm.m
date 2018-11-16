@@ -118,8 +118,10 @@ classdef GenPerm
         
         function M = orthogonalMatrix(gp)
         % Permutation/orthogonal matrix corresponding to a group element
-            M = diag(sign(gp));
-            M(abs(gp), :) = M;
+            n = length(gp);
+            D = sparse(1:n, 1:n, sign(gp), n, n);
+            M = sparse([], [], [], n, n);
+            M(abs(gp), :) = D;
         end
         
         function M = slowOrthogonalMatrix(gp)

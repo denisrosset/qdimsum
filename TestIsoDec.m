@@ -35,3 +35,22 @@ G = Group([g1;g2;g3;g4;g5;g6]);
 I = IsoDec.forGroup(G, settings);
 assert(isequal(sort(I.compDims), [2 7 11 12 16]));
 assert(isequal(sort(I.repTypes), [1 1 1 1 2]));
+
+G = Group.binaryTetrahedralGroup;
+% Representations
+% 1 trivial
+% d=1 complex and its conjugate
+% d=2 quaternionic
+% d=2 complex and its conjugate
+% d=3 real
+
+
+%\hat{n}_j is the isotypic component size = \overline{m}_j \overline{n}_j
+
+
+g1 = GenPerm.fromCycles(55, [1,37], [3,39], [4,46], [5,55], [6,48], [7,16], [8,43], [9,18], [10,52], [12,42], [14,51], ...
+                       [15,21], [17,41], [19,50], [22,29], [23,45], [24,31], [25,54], [26,35], [27,34], [28,33], ...
+                       [30,44], [32,53], [40,47]);
+g2 = GenPerm.fromCycles(55, [1,10,13,36], [2,25], [3,26,11,32], [4,6,24,22], [5,9,27,29], [7,14,31,23], [8,15,34,30], ...
+                        [12,33], [16,19,18,28], [17,20,21,35], [37,40,39,44], [38,41,42,45], [46,49,48,53], [47,50,51,54]);
+G = Group([g1;g2]);
