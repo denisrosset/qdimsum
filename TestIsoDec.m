@@ -4,16 +4,19 @@ settings = NVSettings;
 G = Group([2 3 4 1; 3 2 1 4]);
 I = IsoDec.forGroup(G, settings);
 assert(isequal(sort(I.compDims), [1 1 2]));
+I.refine.check;
+
 % Cyclic group of order 4
 G = Group([2:16 1]);
 I = IsoDec.forGroup(G, settings);
 assert(isequal(sort(I.compDims), [1 1 2 2 2 2 2 2 2]));
-assert(isequal(sort(I.repTypes), [1 1 2 2 2 2 2 2 2]));
+I.refine.check;
+
 % Klein four group
 G = Group([2 1 3 4; 1 2 4 3]);
 I = IsoDec.forGroup(G, settings);
 assert(isequal(sort(I.compDims), [1 1 2]));
-assert(isequal(sort(I.repTypes), [1 1 1]));
+I.refine.check;
 
 % Mathieu group M9
 g1 = GenPerm.fromCycles(9, [1,4,9,8], [2,5,3,6]);
@@ -21,7 +24,7 @@ g2 = GenPerm.fromCycles(9, [1,6,5,2], [3,7,9,8]);
 G = Group([g1;g2]);
 I = IsoDec.forGroup(G, settings);
 assert(isequal(sort(I.compDims), [1 8]));
-assert(isequal(sort(I.repTypes), [1 1]));
+I.refine.check;
 
 % Rubik cube group
 
@@ -34,7 +37,7 @@ g6 = GenPerm.fromCycles(48, [41,43,48,46], [42,45,47,44], [14,22,30,38], [15,23,
 G = Group([g1;g2;g3;g4;g5;g6]);
 I = IsoDec.forGroup(G, settings);
 assert(isequal(sort(I.compDims), [2 7 11 12 16]));
-assert(isequal(sort(I.repTypes), [1 1 1 1 2]));
+I.refine.check;
 
 G = Group.binaryTetrahedralGroup;
 % Representations

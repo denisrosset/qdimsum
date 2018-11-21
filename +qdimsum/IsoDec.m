@@ -8,14 +8,35 @@ classdef IsoDec < handle
         fromOrbit;    % fromOrbit(i) is the index of orbit in group.orbit from which
                       % the basis vector U(:,i) comes from
         U;            % Orthonormal change of basis matrix
+        ordered;      % Whether the representations inside the isotypic components have already been ordered
+                      % so that an element of the group algebra is block-diagonal in the isotypic component basis
+                      % with m copies of size d x d, where m is the multiplicity and d the dimension
+                      % However, this ordering does not mean that equivalent representations are expressed in the
+                      % same basis, or that real/complex/quaternionic representations are recognized: that is the
+                      % job of IrrDec.
         compDims;     % Isotypic component dimensions
-        repDims;      % Representation dimensions
-        repMuls;      % Representation multiplicities
+        repDims;      % Representation (real) dimensions
+        repMuls;      % Representation (real) multiplicities
         settings;
     end
     
     methods
         
+        function self = IsoDec(group, fromOrbit, U, ordered, repDims, repMuls, settings)
+        % Constructs an IsoDec from full data
+            self.group = group;
+            self.fromOrbit = fromOrbit;
+            self.U = U;
+            self.ordered = ordered;
+            self.repDims = repDims(:)';
+            self.repMuls = repMuls(:)';
+            self.compDims = repDims(:)' .* repMuls(:)';
+            self.settings = settings;
+            if settings.checkLevel > 0
+                self.check;
+            end
+        end
+
         function n = nReps(self)
         % Number of isotypic components
             n = length(self.compDims);
@@ -34,45 +55,49 @@ classdef IsoDec < handle
             Urep = self.U(:, self.repRange(r));
         end
         
+        function refinedBasis = refinedRepresentationBasis(self, r)
+        % Returns the refined basis elements for the r-th representation
+            import qdimsum.*
+            range = self.repRange(r); % basis indices
+            orbits = self.fromOrbit(range); % orbits present in that component
+            n = self.group.n;
+            refinedBasis = zeros(n, length(range));
+            for o = 1:unique(orbits) % refine orbits individually
+                basisInd = range(orbits == o); % basis elements we refine
+                n = length(basisInd);
+                % the o-th orbit elements
+                oOrbit = self.group.permOrbits.orbits{o};
+                % find restriction of group to the o-th orbit
+                resGroup = self.group.permOrbitRestriction(o);
+                % basis for the r-th representation in the o-th orbit
+                basis = self.U(oOrbit, basisInd);
+                % compute a sample
+                T = basis*Random.symmetricGaussian(n)*basis'; % range in the corresponding representation
+                T = T + T'; % force symmetry
+                T = resGroup.phaseConfiguration.project(T); % project in the invariant subspace
+                                                            % compute eigenvalues, the n largest eigenvalues correspond to the representation basis
+                [refinedBasis, lambda] = sortedEig(T, 'descend', true);
+                lambda = diag(lambda);
+                refinedBasis = refinedBasis(:, 1:n); % cuts the possible additional eigenvectors
+                refinedBasis(oOrbit, orbits == o) = refinedBasis; % replace basis
+            end
+        end
+        
         function I = refine(self)
-        % Refine representation bases
+        % Refine the change of basis by performing a second step of eigenvalue decomposition inside each
+        % isotypic component. As a bonus, it orders the irreducible representations inside the isotypic
+        % components, so that I.ordered = true.
             import qdimsum.*
             U = self.U;
             for r = 1:self.nReps % refine each isotypic component
                 range = self.repRange(r);
-                orbits = self.fromOrbit(range); % orbits present in that component
-                for o = 1:unique(orbits) % refine orbits individually
-                    repOrbit = range(find(self.fromOrbit(range) == o)); % orbit indices for rep
-                    n = length(repOrbit);
-                    if n > 1
-                        % the o-th orbit elements
-                        fullOrbit = self.group.permOrbits.orbits{o};
-                        % find restriction of group to the o-th orbit
-                        resGroup = self.group.permOrbitRestriction(o);
-                        % basis for the r-th representation in the o-th orbit
-                        basis = U(fullOrbit, repOrbit);
-                        % compute a sample
-                        T = resGroup.phaseConfiguration.project(basis*Random.symmetricGaussian(n)*basis');
-                        % force symmetry
-                        T = T + T';
-                        % compute eigenvalues, the n largest eigenvalues correspond to the representation basis
-                        % TODO: would Gram-Schmidt be more precise?, or something else? EV decomposition seems
-                        % wasteful
-                        [refinedBasis, lambda] = eig(T);
-                        lambda = diag(lambda);
-                        [~, I] = sort(abs(lambda)); % sort eigenvalues (needed on Matlab 2015b)
-                        I = flipud(I(:)); % largest magnitude first
-                        lambda = lambda(I); % reorder accordingly
-                        refinedBasis = refinedBasis(:, I);
-                        refinedBasis = refinedBasis(:, 1:n); % cuts the possible additional eigenvectors
-                        U(fullOrbit, repOrbit) = refinedBasis; % replace basis
-                    end
-                end
+                U(:, range) = self.refinedRepresentationBasis(r);
             end
-            I = IsoDec(self.group, self.fromOrbit, U, self.repDims, self.repMuls, self.settings);
+            I = IsoDec(self.group, self.fromOrbit, U, true, self.repDims, self.repMuls, self.settings);
         end
         
         function o = smallestOrbitInRep(self, r)
+        % Returns the smallest orbit present in the r-th representation
             range = self.repRange(r);
             % need only to consider one orbit
             orbits = self.fromOrbit(range);
@@ -84,11 +109,12 @@ classdef IsoDec < handle
         end
         
         function r = repIsReal(self, r)
+        % Returns whether the r-th representation is real
             import qdimsum.*
             % Eigenvalue tolerance
             tol = self.settings.blockDiagEigTol;
             % Find smallest group orbit to perform the test in
-            o = smallestOrbitInRep(self, r);
+            o = self.smallestOrbitInRep(r);
             range = self.repRange(r);
             % Full orbit, can include other representations, used to select the
             % phase configuration to be sampled
@@ -125,25 +151,135 @@ classdef IsoDec < handle
             r = length(conGen) == length(conSym);
         end
 
-        function self = IsoDec(group, fromOrbit, U, repDims, repMuls, settings)
-        % Constructs an IsoDec from full data
-            self.group = group;
-            self.fromOrbit = fromOrbit;
-            self.U = U;
-            self.repDims = repDims(:)';
-            self.repMuls = repMuls(:)';
-            self.compDims = repDims(:)' .* repMuls(:)';
-            self.settings = settings;
+        function check(self)
+        % Checks the validity of this isotypic decomposition
+            import qdimsum.*
+            tol = self.settings.blockDiagMatTol;
+            % Checks that the isotypic components are correct by considering
+            % a sample from matrices that commute with the group
+            sample = self.group.phaseConfiguration.sampleRealGaussian;
+            sample = self.U'*sample*self.U;
+            for i = 1:self.nReps
+                ir = self.repRange(i);
+                for j = 1:self.nReps
+                    jr = self.repRange(j);
+                    block = sample(ir, jr);
+                    assert(isNonZeroMatrix(block, tol) == (i == j));
+                end
+            end
+            % Second check by using sampling from the group algebra
+            M1 = self.U'*GenPerm.orthogonalMatrix(self.group.randomElement)*self.U;
+            M2 = self.U'*GenPerm.orthogonalMatrix(self.group.randomElement)*self.U;
+            M = randn * M1 + randn * M2;
+            for i = 1:self.nReps
+                ir = self.repRange(i);
+                for j = 1:self.nReps
+                    jr = self.repRange(j);
+                    % standard check
+                    block = M(ir, jr);
+                    assert(isNonZeroMatrix(block, tol) == (i == j));
+                    if i == j && self.ordered
+                        % verify that irreducible representations are grouped correctly inside the
+                        % isotypic component
+                        m = self.repMuls(i);
+                        d = self.repDims(i);
+                        for k = 1:m
+                            kr = d*(k-1) + (1:d);
+                            for l = 1:m
+                                lr = d*(l-1) + (1:d);
+                                assert(isNonZeroMatrix(block(kr, lr), tol) == (k == l));
+                            end
+                        end 
+                    end
+                end
+            end
         end
-
+        
     end
-    
+
     methods (Static)
        
         function I = forGroup(group, settings)
         % Computes the isotypic decomposition of the given generalized permutation group
-            [U reps fromOrbit] = qdimsum.Reps.isotypicComponents(group, settings);
-            I = qdimsum.IsoDec(group, fromOrbit, U, reps(1, :), reps(2, :), settings);
+            import qdimsum.*
+            if nargin < 2
+                settings = NVSettings; % use default settings if not provided
+            end
+            % Get problem structure
+            n = group.phaseConfiguration.n;
+            orbits = group.permOrbits.orbits;
+            nOrbits = length(orbits);
+            % Get first sample
+            sample1 = group.phaseConfiguration.sampleSymmetricGaussian;
+            % Data to be prepared
+            fromOrbit = zeros(1, n);
+            runs = {}; % identify blocks of repeated eigenvalues
+            U = zeros(n, n); % use dense matrix for now, but should switch to sparse
+                             % if the savings due to orbits are worth it
+            shift = 0;
+            % Treat each orbit individually, to preserve some sparsity
+            for o = 1:nOrbits
+                orbit = orbits{o}; % indices in the current orbit
+                orbitSize = length(orbit);
+                basisIndices = shift + (1:orbitSize); % indices of basis elements to compute
+                [Uo Do] = sortedEig(sample1(orbit, orbit), 'ascend', false);
+                Do = diag(Do);
+                U(orbit, basisIndices) = Uo;
+                fromOrbit(basisIndices) = o;
+                runso = findRuns(Do, settings); % find subspaces corresponding to repeated eigenvalues
+                runso = cellfun(@(r) r + shift, runso, 'UniformOutput', false); % shift to cater to basis indices
+                runs = horzcat(runs, runso); % concatenate runs
+                shift = shift + orbitSize;
+            end
+            % Now, U provides a basis that splits isotypic components. Remains to group them
+            % according to their equivalent representations.
+            sample2 = group.phaseConfiguration.sampleSymmetricGaussian;
+            sample2p = U'*sample2*U;
+            % We are computing the block mask, where each block corresponds to a run of identical
+            % eigenvalues.
+            % Blocks corresponding to inequivalent representations should be zero; to cater
+            % for numerical errors, we check whether the matrix 2-norm is above or below
+            % the tolerance 'blockDiagMatTol'.
+            nRuns = length(runs);
+            blockMask = logical(zeros(nRuns, nRuns));
+            v = zeros(nRuns, nRuns);
+            tol = settings.blockDiagMatTol;
+            registerHist = ~isequal(settings.blockDiagMatHist, []);
+            for i = 1:nRuns
+                for j = 1:nRuns
+                    block = sample2p(runs{i}, runs{j});
+                    blockMask(i, j) = isNonZeroMatrix(block, tol);
+                    if ~blockMask(i, j) && registerHist
+                        % register all singular values of the block
+                        singvals = svd(block);
+                        settings.blockDiagMatHist.register(singvals(singvals <= tol));
+                    end
+                end
+            end
+            % find the subspaces corresponding to the same irreducible representation
+            % by looking at the connected components of the graph defined by the adjacency
+            % matrix of the block mask
+            cc = findConnectedComponents(blockMask);
+            Nc = length(cc);
+            reps = zeros(2, Nc);
+            for i = 1:Nc
+                c = cc{i};
+                reps(2, i) = length(c);
+                dims = arrayfun(@(i) length(runs{i}), c);
+                % verify that the dimensions are all the same for consistency
+                assert(all(dims - dims(1) == 0), 'Inconsistent representation dimensions');
+                reps(1, i) = dims(1);
+            end
+            % sort the irreducible representations first by increasing dimension
+            % then by increasing multiplicity
+            [~, I] = sortrows(reps');
+            reps = reps(:, I);
+            cc = cc(I);
+            reorder = cellfun(@(i) horzcat(runs{i}), cc, 'UniformOutput', false);
+            reorder = [reorder{:}];
+            U = U(:, reorder);
+            fromOrbit = fromOrbit(reorder);
+            I = qdimsum.IsoDec(group, fromOrbit, U, true, reps(1, :), reps(2, :), settings);
         end
         
     end

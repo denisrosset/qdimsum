@@ -6,23 +6,28 @@ classdef IrrDec < handle
     
     properties (GetAccess = public, SetAccess = protected)
         group;        % Generalized permutation group of which we decompose the natural representation
+        fromOrbit;    % fromOrbit(i) is the index of orbit in group.orbit from which
+                      % the basis vector U(:,i) comes from
         U;            % Orthonormal change of basis matrix
         compDims;     % Isotypic component dimensions
         repDims;      % Representation dimensions
         repMuls;      % Representation multiplicities
                       % all types are real
         repTypes;     % 1 - real, 2 - complex, 3 - quaternionic
+        settings;
     end
     
     methods
        
-        function self = IrrDec(group, U, repDims, repMuls, repTypes)
+        function self = IrrDec(group, fromOrbit, U, repDims, repMuls, repTypes, settings)
             self.group = group;
             self.U = U;
+            self.fromOrbit = fromOrbit;
             self.repDims = repDims(:)';
             self.repMuls = repMuls(:)';
             self.compDims = repDims(:)' .* repMuls(:)';
             self.repTypes = repTypes(:)';
+            self.settings = settings;
         end
         
         function n = nComponents(self)
@@ -41,87 +46,76 @@ classdef IrrDec < handle
                 shift = shift + d*m;
             end
         end
-
-    end
-    
-    methods (Static)
-       
-        function [V newFromOrbit] = decomposeRealComponent(self, sample1, sample2, dim, mult, fromOrbit)
-        % Given two (symmetric matrix) samples from an isotypic component of real type for a representation
-        % of the given dimension and multiplicity, computes the change of basis matrix that puts all copies
-        % of the irreducible representation in the same basis.
-            n = dim * mult;
-            Q = [];
-            newFromOrbit = [];
-            for o = unique(fromOrbit)
-                % for each orbit
-                ind = find(fromOrbit == o);
-                C = zeros(n, length(ind));
-                % group eigenvalues
-                [Qo, lambda] = eig(sample1(ind, ind));
-                [~, I] = sort(abs(diag(lambda))); % sort eigenvalues (needed on Matlab 2015b)
-                I = flipud(I(:)); % largest magnitude first
-                Qo = Qo(:, I);
-                C(ind, :) = Qo;
-                Q = [Q C];
-                newFromOrbit = [newFromOrbit o*ones(1, length(n))];
-            end
-            % use a second sample to put all irreducible components in the same basis
-            T = Q(:,1:dim)'*sample2*Q;
-            P = cell(1, mult);
-            P{1} = eye(dim);
-            for j = 2:mult
-                P{j} = T(:, (j-1)*dim+(1:dim))';
-                P{j} = P{j} * sqrt(dim/trace(P{j}*P{j}'));
-            end
-            V = Q * blkdiag(P{:});
+        
+        function I = toIsoDec(self)
+        % Returns the isotypic decomposition corresponding to this irreducible decomposition
+            import qdimsum.*
+            I = IsoDec(self.group, self.fromOrbit, self.U, true, self.repDims, self.repMuls, self.settings);
         end
         
-        function [t Urep] = splitComponent(self, r)
+        function check(self)
+        % Checks the validity of this irreducible decomposition
             import qdimsum.*
-            tol = self.settings.blockDiagEigTol;
-            Urep = self.repBasis(r);
-            sampleGen = Urep'*self.group.phaseConfiguration.sampleRealGaussian*Urep;
-            sampleSym = sampleGen + sampleGen';
-            lambdaGen = eig(sampleGen);
-            lambdaSym = eig(sampleSym);
-            distGen = abs(bsxfun(@minus, lambdaGen, lambdaGen.'));
-            distSym = abs(bsxfun(@minus, lambdaSym, lambdaSym.'));
-            maskGen = distGen <= tol;
-            maskSym = distSym <= tol;
-            if ~isequal(self.settings.blockDiagEigHist, [])
-                self.settings.blockDiagEigHist.register(distGen(maskGen));
-                self.settings.blockDiagEigHist.register(distSym(maskSym));
-            end
-            conGen = Reps.findConnectedComponents(maskGen);
-            conSym = Reps.findConnectedComponents(maskSym);
-            lenGen = cellfun(@(x) length(x), conGen);
-            lenSym = cellfun(@(x) length(x), conSym);
-            assert(all(lenGen == lenGen(1)));
-            assert(all(lenSym == lenSym(1)));
-            if length(conGen) == length(conSym)
-                t = 1;
-                Urep = [];
-            else
-                t = 2;
-                [U T] = schur(sampleGen);
+            % Perform isotypic checks
+            self.toIsoDec.check;
+            % TODO: irreducible checks
+            
+        end
+
+    end
+
+    methods (Static)
+        
+        function refinedBasis = orderedComplexBasis(iso, r)
+        % Reorder the components of a complex representation so that the complex structure is visible
+        % or returns [] if the representation is quaternionic
+        % Optimized for precision
+            import qdimsum.*
+            tol = iso.settings.blockDiagEigTol;
+            range = iso.repRange(r);
+            d = iso.repDims(r);
+            m = iso.repMuls(r);
+            newU = iso.U;
+            orbitsForRange = iso.fromOrbit(range);
+            refinedBasis = zeros(iso.group.n, length(range));
+            for o = unique(orbitsForRange) % iterate over all orbits present in this rep
+                basisInd = range(orbitsForRange == o); % orbit indices for rep
+                realRank = length(basisInd);
+                % Euclidean coordinates of the o-th orbit elements (regardless of representation)
+                oOrbit = iso.group.permOrbits.orbits{o};
+                n = length(oOrbit);
+                % find restriction of group to the o-th orbit
+                resGroup = iso.group.permOrbitRestriction(o);
+                % basis for the r-th representation in the o-th orbit
+                basis = iso.U(oOrbit, basisInd);
+                % compute a generic invariant sample (non-symmetric matrix), restricted to oOrbit x oOrbit
+                sample = basis*Random.realGaussian(length(basisInd))*basis';
+                sample = resGroup.phaseConfiguration.project(sample); % project in the invariant subspace
+                [U T] = schur(sample);
                 D = diag(T);
-                D = D(1:2:end);
-                distD = abs(bsxfun(@minus, D, D'));
-                maskD = distD <= tol;
-                conD = Reps.findConnectedComponents(maskD);
-                n = self.compDims(r);
-                d = self.repDims(r);
-                m = self.repMuls(r); % multiplicity = number of distinct eigenvalue pairs
-                assert(length(conD) == m);
+                nzInd = find(abs(D) > tol);
+                zInd = find(abs(D) <= tol);
                 clusters = zeros(1, n);
+                clusters(zInd) = 1;
+                nzD = D(nzInd(1:2:end));
+                distD = abs(bsxfun(@minus, nzD, nzD'));
+                maskD = distD <= tol;
+                conD = findConnectedComponents(maskD);
+                if length(conD) * 2 ~= realRank
+                    % wrong rank found, it is a quaternionic representation
+                    refinedBasis = [];
+                    return
+                end
                 for i = 1:length(conD)
-                    compD = conD{i};
-                    assert(length(compD) == d/2);
-                    clusters((compD-1)*2+1) = i;
-                    clusters((compD-1)*2+2) = i;
+                    compD1 = nzInd(conD{i}*2-1);
+                    compD2 = nzInd(conD{i}*2);
+                    assert(length(compD1) == d/2);
+                    clusters(compD1) = i + 1;
+                    clusters(compD2) = i + 1;
                 end
                 [US TS] = ordschur(U, T, clusters);
+                % force blocks corresponding to the same complex eigenvalue to express it
+                % the same way
                 start = 1;
                 b = 1;
                 for i = 1:m
@@ -136,67 +130,73 @@ classdef IrrDec < handle
                     end
                     start = b;
                 end
-                norm(US*TS*US' - sampleGen)
-                sampleGen2 = Urep'*self.group.phaseConfiguration.sampleRealGaussian*Urep;
-                TT = US'*sampleGen2*US;
-                P = cell(1, m);
-                P{1} = eye(d);
-                for j = 2:m
-                    P{j} = TT(1:d, (j-1)*d+(1:d))';
-                    P{j} = P{j} * sqrt(d/trace(P{j}*P{j}'));
-                end
-                PP = blkdiag(P{:});
-                Urep  = Urep * US * PP;
-                %size(Urep)
-                %Urep = Urep * V;
-                %size(sampleGen)
-                %size(Urep)
-                %Urep*sampleGen*Urep'
-                %norm(US*TS*US' - sampleGen)
+                refinedBasis(oOrbit, orbitsForRange == o) = US(:, 1:realRank);
             end
-% $$$                 nCopies
-% $$$                 distinct = cellfun(@(ind) mean(lambdaGen(ind)), conGen);
-% $$$                 
-% $$$                 ordered = [];
-% $$$                 while length(distinct) > 0
-% $$$                     l = distinct(1);
-% $$$                     distinct = distinct(2:end);
-% $$$                     lc = conj(l);
-% $$$                     distinct = distinct(find(abs(distinct - lc) > tol));
-% $$$                     ordered = [ordered l lc];
-% $$$                 end
-% $$$                 ordered
-                
-                %distReal = abs(bsxfun(@minus, real(lambdaGen), real(lambdaGen)'));
-                %maskReal = distReal <= self.settings.blockDiagEigTol;
-                %conReal = Reps.findConnectedComponents(maskReal);
-                
-                %list = cell2mat(conGen')
-                %d = self.compDims(r); % component dimension
-            %r = rand;
-            %[~, I] = sort(check);
-            %[~, Isym] = sort(checkSym);
-            %runs = Reps.findRuns(check(I), settings);
-            %runsSym = Reps.findRuns(checkSym(Isym), settings);
-            %if length(runs) == length(runsSym)
-            %    type = 'R';
-            %else
-            %    type = 'CH';
-            %end
-        end
-            
         end
         
-        function I = fromIsoDec(isoDec)
-            
+    end
+    methods (Static)
+        
+        function I = fromIsoDec(iso)
+        % Constructs an irreducible decomposition from an isotypic decomposition
+            import qdimsum.*
+            sample = iso.group.phaseConfiguration.sampleRealGaussian;
+            U = iso.U;
+            repTypes = zeros(1, iso.nReps);
+            for r = 1:iso.nReps
+                d = iso.repDims(r);
+                m = iso.repMuls(r);
+                range = iso.repRange(r);
+                if iso.repIsReal(r)
+                    % use a second sample to put all irreducible components in the same basis
+                    if iso.ordered
+                        Urep = U(:, range);
+                    else
+                        Urep = iso.refinedRepresentationBasis(r);
+                    end
+                    % only need the first row of blocks
+                    repSample = Urep(:, 1:d)'*(sample + sample')*Urep;
+                    P = cell(1, m);
+                    P{1} = eye(d);
+                    for j = 2:m
+                        P{j} = repSample(:, (j-1)*d+(1:d))';
+                        P{j} = P{j} * sqrt(d/trace(P{j}*P{j}'));
+                    end
+                    Urep = Urep * blkdiag(P{:});
+                    U(:, range) = Urep;
+                    repTypes(r) = 1;
+                else
+                    Urep = IrrDec.orderedComplexBasis(iso, r);
+                    if isequal(Urep, [])
+                        U(:, range) = NaN;
+                        repTypes(r) = 3;
+                    else
+                        repSample = Urep(:, 1:d)'*sample*Urep;
+                        P = cell(1, m);
+                        P{1} = eye(d);
+                        for j = 2:m
+                            P{j} = repSample(:, (j-1)*d+(1:d))';
+                            P{j} = P{j} * sqrt(d/trace(P{j}*P{j}'));
+                        end
+                        Urep = Urep * blkdiag(P{:});
+                        U(:, range) = Urep;
+                        repTypes(r) = 2;
+                    end
+                end
+            end
+            I = qdimsum.IrrDec(iso.group, iso.fromOrbit, U, iso.repDims, iso.repMuls, repTypes, iso.settings);
         end
         
         function I = forGroup(group, settings)
-            [U reps] = qdimsum.Reps.irreducibleDecomposition(group, settings);
-            types = ones(1, size(reps, 2));
-            I = qdimsum.IrrDec(group, U, reps(1, :), reps(2, :), types);
+        % Constructs the irreducible decomposition of the given group
+            import qdimsum.*
+            if nargin < 2
+                settings = NVSettings;
+            end
+            iso = IsoDec.forGroup(group);
+            I = IrrDec.fromIsoDec(iso);
         end
-        
+                
     end
     
 end
