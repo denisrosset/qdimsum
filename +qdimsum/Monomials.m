@@ -69,7 +69,7 @@ classdef Monomials
             stateDim = size(elements, 1);
             krausRank = size(elements, 2);
             nMonomials = self.length;
-            elements = reshape(elements, [stateDim*krausRank nMonomials]) * basis;
+            elements = reshape(elements, [stateDim*krausRank nMonomials]) * U;
             elements = reshape(elements, [stateDim krausRank nMonomials]);
         end
 

@@ -48,9 +48,9 @@ classdef Relaxation < handle
             import qdimsum.*
             if isequal(self.monomialsIsoDec_, [])
                 if self.settings.blockDiagRefine
-                    self.monomialsIsoDec_ = IsoDec.forGroup(self.monomialsGroup).refine;
+                    self.monomialsIsoDec_ = IsoDec.forGroup(self.monomialsGroup, self.settings).refine;
                 else
-                    self.monomialsIsoDec_ = IsoDec.forGroup(self.monomialsGroup);
+                    self.monomialsIsoDec_ = IsoDec.forGroup(self.monomialsGroup, self.settings);
                 end
             end
             I = self.monomialsIsoDec_;
@@ -62,13 +62,11 @@ classdef Relaxation < handle
             if isequal(self.monomialsIrrDec_, [])
                 self.monomialsIrrDec_ = IrrDec.fromIsoDec(self.monomialsIsoDec);
             end
-            I = self.monomialsIsoDec_;
+            I = self.monomialsIrrDec_;
         end
 
-        function [chi obj] = sample(self)
-        % Returns a sample of the moment matrix
-            X = self.problem.sampleOperators;
-            K = self.problem.sampleStateKraus;
+        function chi = momentMatrix(self, X, K)
+        % Returns the moment matrix computed from operators X and state Kraus dec. K
             monos = self.monomials.computeKraus(X, K);
             stateDim = size(monos, 1);
             krausRank = size(monos, 2);
@@ -78,65 +76,107 @@ classdef Relaxation < handle
                 chi = real(chi);
             end
             chi = (chi + chi')/2; % to cater for possible rounding errors
-            obj = self.problem.computeObjective(X, K);
         end
         
-        function [chi obj] = symmetrizedSample(self)
-        % Returns a sample projected in the invariant subspace
+        function blocks = blockDiagMomentMatrix(self, method, X, K)
+        % Returns a single copy for each block present in the symmetry adapted basis 
+        % method can be 'isotypic' 'irreps' or 'blocks'/'fastest'
+            blocks = {};
+            switch method
+              case {'blocks', 'fastest'}
+                I = self.monomialsIrrDec;
+                monos = self.monomials.computeKrausInBasis(X, K, I.U);
+                monos = reshape(monos, [size(monos,1)*size(monos,2) size(monos,3)]);
+                shift = 0;
+                blocks = {};
+                realDims = [1 2 4];
+                for r = 1:self.monomialsIrrDec.nComponents
+                    m = I.repMuls(r);
+                    d = I.repDims(r);
+                    f = realDims(I.repTypes(r));
+                    block = zeros(m*f, m*f);
+                    for i = 1:d
+                        range = shift + (i:d/f:d*m);
+                        block = block + monos(:,range)'*monos(:,range);
+                    end
+                    block = block/(d/f);
+                    if self.problem.forceReal
+                        block = real(block);
+                    end
+                    switch I.repTypes(r)
+                      case 1
+                        % do nothing
+                      case 2
+                        block = IrrDec.projectComplexBlocks(block, 1, false, false);
+                      case 3
+                        block = IrrDec.projectQuaternionicBlocks(block, 1, false, false);
+                    end
+                    blocks{r} = block;
+                    shift = shift + d*m;
+                end
+              case 'isotypic'
+                chi = self.symmetrizedMomentMatrix(X, K);
+                blocks = self.monomialsIsoDec.projectInIsoBasis(chi);
+              case 'irreps'
+                chi = self.symmetrizedMomentMatrix(X, K);
+                blocks = self.monomialsIrrDec.projectInIrrBasis(chi, false, false); % invariant matrices, do not preserve copies
+              otherwise
+                error(['Unsupported method ' method]);
+            end
+            for r = 1:length(blocks)
+                blocks{r} = (blocks{r} + blocks{r}')/2;
+            end
+        end
+        
+        function chi = symmetrizedMomentMatrix(self, X, K)
+        % Equivalent to the "reynolds" method
             import qdimsum.*
-            [chi obj] = self.sample;
+            chi = self.momentMatrix(X, K);
             chi = self.monomialsGroup.phaseConfiguration.project(chi);
             chi = (chi + chi')/2; % to cater for possible rounding errors
         end
         
-        function [samples objs] = computeBasis(self)
-        % Computes an affine basis of samples
+        function [vec blockSizes] = computeBasisElement(self, method, X, K)
+        % Returns a realization of a moment matrix basis element, vectorized
+        % 
+        % method can be none, reynolds, isotypic, irreps or blocks/fastest
+        % Optional: provide the sample X (operators) and K (state Kraus decomposition)
             import qdimsum.*
-            blockStructure = BlockStructure({1:self.nMonomials});
-            sampleDim = blockStructure.dimension;
-            samples = zeros(sampleDim, 0);
-            objs = zeros(1, 0);
-            chunkSize = self.settings.sampleChunkSize;
-            l = 0;
-            while 1
-                % preallocate chunk
-                samples = [samples zeros(sampleDim, chunkSize)];
-                objs = [objs zeros(1, chunkSize)];
-                for i = 1:chunkSize
-                    [chi obj] = self.sample;
-                    sample = BlockStructure.matToVec(chi);
-                    l = l + 1;
-                    samples(:,l) = sample;
-                    objs(l) = obj;
-                end
-                l = l + chunkSize;
-                r = rank(samples);
-                if r < l
-                    break
-                end
+            switch method
+              case 'none'
+                block = self.momentMatrix(X, K);
+                blocks = {block};
+              case 'reynolds'
+                block = self.symmetrizedMomentMatrix(X, K); 
+                blocks = {block};
+              otherwise
+                blocks = self.blockDiagMomentMatrix(method, X, K);
             end
-            samples = samples(:,1:r);
-            objs = objs(1:r);
+            [vec blockSizes] = blocksToVec(blocks, true);
         end
 
-        function [samples objs] = computeSymmetrizedBasis(self)
+        function [samples objs] = computeBasis(self, method)
+        % Computes an affine basis of samples
             import qdimsum.*
-            blockStructure = BlockStructure({1:self.nMonomials});
-            sampleDim = blockStructure.dimension;
-            samples = zeros(sampleDim, 0);
-            objs = zeros(1, 0);
+            X = self.problem.sampleOperators;
+            K = self.problem.sampleStateKraus;
+            [vec blockSizes] = self.computeBasisElement(method, X, K);
+            objs = self.problem.computeObjective(X, K);
+            samples = vec(:);
+            sampleDim = length(samples);
             chunkSize = self.settings.sampleChunkSize;
-            l = 0;
+            l = 1;
             while 1
                 % preallocate chunk
                 samples = [samples zeros(sampleDim, chunkSize)];
                 objs = [objs zeros(1, chunkSize)];
                 for i = 1:chunkSize
-                    [chi obj] = self.symmetrizedSample;
-                    sample = BlockStructure.matToVec(chi);
+                    X = self.problem.sampleOperators;
+                    K = self.problem.sampleStateKraus;
                     l = l + 1;
-                    samples(:,l) = sample;
-                    objs(l) = obj;
+                    [vec, ~] = self.computeBasisElement(method, X, K);
+                    samples(:, l) = vec;
+                    objs(l) = self.problem.computeObjective(X, K);
                 end
                 l = l + chunkSize;
                 r = rank(samples);
@@ -147,6 +187,6 @@ classdef Relaxation < handle
             samples = samples(:,1:r);
             objs = objs(1:r);
         end
-   
+           
     end
 end

@@ -24,6 +24,7 @@ classdef IsoDec < handle
         
         function self = IsoDec(group, fromOrbit, U, ordered, repDims, repMuls, settings)
         % Constructs an IsoDec from full data
+            assert(isreal(U));
             self.group = group;
             self.fromOrbit = fromOrbit;
             self.U = U;
@@ -73,10 +74,11 @@ classdef IsoDec < handle
                 basis = self.U(oOrbit, basisInd);
                 % compute a sample
                 T = basis*Random.symmetricGaussian(n)*basis'; % range in the corresponding representation
-                T = T + T'; % force symmetry
                 T = resGroup.phaseConfiguration.project(T); % project in the invariant subspace
                                                             % compute eigenvalues, the n largest eigenvalues correspond to the representation basis
+                T = T + T'; % force symmetry
                 [U, ~] = sortedEig(T, 'descend', true);
+                assert(isreal(U));
                 refinedBasis(oOrbit, orbits == o) = U(:, 1:n); % replace basis cutting the possible additional eigenvectors
             end
         end
@@ -147,6 +149,14 @@ classdef IsoDec < handle
             assert(all(lenSym == lenSym(1)));
             % Same number of distinct eigenvalues between nonsym and sym? Then the representation is real
             r = length(conGen) == length(conSym);
+        end
+        
+        function blocks = projectInIsoBasis(self, M)
+            blocks = cell(1, self.nComponents);
+            for r = 1:self.nComponents
+                range = self.compRange(r);
+                blocks{r} = self.U(:, range)' * M * self.U(:, range);
+            end
         end
 
         function check(self)

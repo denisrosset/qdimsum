@@ -18,8 +18,9 @@ classdef IrrDec < handle
     end
     
     methods
-       
+               
         function self = IrrDec(group, fromOrbit, U, repDims, repMuls, repTypes, settings)
+            assert(isreal(U));
             self.group = group;
             self.U = U;
             self.fromOrbit = fromOrbit;
@@ -28,7 +29,9 @@ classdef IrrDec < handle
             self.compDims = repDims(:)' .* repMuls(:)';
             self.repTypes = repTypes(:)';
             self.settings = settings;
-            self.check;
+            if settings.checkLevel > 0
+                self.check;
+            end
         end
         
         function n = nComponents(self)
@@ -68,14 +71,18 @@ classdef IrrDec < handle
         end
         
         function M1 = project(self, M)
-            M1 = self.U*self.projectInIrrepBasis(M, true)*self.U';
+            blocks = self.projectInIrrepBasis(M, true);
+            M1 = self.U*blkdiag(blocks{:})*self.U';
         end
         
-        function M1 = projectInIrrepBasis(self, M, preserveCopies)
+        function blocks = projectInIrrBasis(self, M, collected, preserveCopies)
         % Projects the matrix M in the invariant subspace, changing the basis of M from the basis on
         % which the group acts to the basis that expresses the irreducible decomposition.
         %
+        % collected = false to decompose matrices that are invariant under the group
+        % collected = true to decompose matrices from the group algebra
         % preserveCopies determines whether we keep the copies of blocks when representations have dimension > 1
+            import qdimsum.*
             if nargin < 3
                 preserveCopies = true;
             end
@@ -85,101 +92,31 @@ classdef IrrDec < handle
             for r = 1:nC
                 m = self.repMuls(r);
                 d = self.repDims(r);
+                blockInd = shift + (1:d*m);
+                Mcomp = self.U(:, blockInd)' * M * self.U(:, blockInd);
                 switch self.repTypes(r)
                   case 1 % REAL TYPE
-                    block = zeros(m, m);
-                    for i = 1:d % Average over blocks
-                        blockInd = shift + (i:d:m*d);
-                        block = block + self.U(:,blockInd)'*M*self.U(:,blockInd);
-                    end
-                    block = block/d;
-                    if preserveCopies
-                        block = kron(block, eye(d));
+                    if collected
+                        block = IrrDec.projectRealBlocks(Mcomp, m, collected, preserveCopies);
+                    else
+                        block = IrrDec.projectRealBlocks(Mcomp, d, collected, preserveCopies);
                     end
                   case 2 % COMPLEX TYPE
-                    % the block is made of 2x2 blocks of the form
-                    % [r -i
-                    %  i  r]
-                    R = zeros(m, m);
-                    I = zeros(m, m);
-                    Rmask = eye(2);
-                    Imask = [0 -1
-                             1  0];
-                    for i = 1:d/2 % Average over elements
-                        blockInd = shift + (i:2*d:m*d);
-                        R = R + self.U(:,blockInd)'*M*self.U(:,blockInd);
-                        R = R + self.U(:,blockInd+1)'*M*self.U(:,blockInd+1);
-                        I = I - self.U(:,blockInd)'*M*self.U(:,blockInd+1);
-                        I = I + self.U(:,blockInd+1)'*M*self.U(:,blockInd);
+                    if collected
+                        block = IrrDec.projectComplexBlocks(Mcomp, m, collected, preserveCopies);
+                    else
+                        block = IrrDec.projectComplexBlocks(Mcomp, d/2, collected, preserveCopies);
                     end
-                    R = R/d;
-                    I = I/d;
-                    if preserveCopies
-                        R = kron(R, eye(d/2));
-                        I = kron(I, eye(d/2));
-                    end
-                    block = kron(R, Rmask) + kron(I, Imask);
                   case 3 % QUATERNIONIC TYPE
-                    % the block is made of 4x4 blocks of the form
-                    % [a -b -c -d
-                    %  b  a -d  c
-                    %  c  d  a -b
-                    %  d -c  b  a]
-                    A = zeros(m, m);
-                    B = zeros(m, m);
-                    C = zeros(m, m);
-                    D = zeros(m, m);
-                    Amask = [1  0  0  0
-                             0  1  0  0
-                             0  0  1  0
-                             0  0  0  1];
-                    Bmask = [0 -1  0  0
-                             1  0  0  0
-                             0  0  0 -1
-                             0  0  1  0];
-                    Cmask = [0  0 -1  0
-                             0  0  0  1
-                             1  0  0  0
-                             0 -1  0  0];
-                    Dmask = [0  0  0 -1
-                             0  0 -1  0
-                             0  1  0  0
-                             1  0  0  0];
-                    for i = 1:d/4 % Average over elements
-                        I = shift + (i:4*d:m*d);
-                        A = A + self.U(:,I)'  *M*self.U(:,I);
-                        A = A + self.U(:,I+1)'*M*self.U(:,I+1);
-                        A = A + self.U(:,I+2)'*M*self.U(:,I+2);
-                        A = A + self.U(:,I+3)'*M*self.U(:,I+3);
-                        B = B - self.U(:,I)'  *M*self.U(:,I+1);
-                        B = B + self.U(:,I+1)'*M*self.U(:,I);
-                        B = B - self.U(:,I+2)'*M*self.U(:,I+3);
-                        B = B + self.U(:,I+3)'*M*self.U(:,I+2);
-                        C = C - self.U(:,I)'  *M*self.U(:,I+2);
-                        C = C + self.U(:,I+1)'*M*self.U(:,I+3);
-                        C = C + self.U(:,I+2)'*M*self.U(:,I);
-                        C = C - self.U(:,I+3)'*M*self.U(:,I+1);
-                        D = D - self.U(:,I)'  *M*self.U(:,I+3);
-                        D = D - self.U(:,I+1)'*M*self.U(:,I+2);
-                        D = D + self.U(:,I+2)'*M*self.U(:,I+1);
-                        D = D + self.U(:,I+3)'*M*self.U(:,I);
+                    if collected
+                        block = IrrDec.projectQuaternionicBlocks(Mcomp, m, collected, preserveCopies);
+                    else
+                        block = IrrDec.projectQuaternionicBlocks(Mcomp, d/4, collected, preserveCopies);
                     end
-                    A = A / d;
-                    B = B / d;
-                    C = C / d;
-                    D = D / d;
-                    if preserveCopies
-                        A = kron(A, eye(d/4));
-                        B = kron(B, eye(d/4));
-                        C = kron(C, eye(d/4));
-                        D = kron(D, eye(d/4));
-                    end
-                    block = kron(A, Amask) + kron(B, Bmask) + kron(C, Cmask) + kron(D, Dmask);
                 end
                 blocks{r} = block;
                 shift = shift + m*d;
             end
-            M1 = blkdiag(blocks{:});
         end
         
         function check(self)
@@ -191,29 +128,18 @@ classdef IrrDec < handle
             % Checks that the isotypic components are correct by considering
             % a sample from matrices that commute with the group
             sampleI = self.group.phaseConfiguration.sampleRealGaussian;
-            sampleI = self.U'*sampleI*self.U;
-            G1 = self.U'*GenPerm.orthogonalMatrix(self.group.randomElement)*self.U;
-            G2 = self.U'*GenPerm.orthogonalMatrix(self.group.randomElement)*self.U;
-            sampleG = randn * G1 + randn * G2;
-            for r = 1:self.nComponents
-                range = self.compRange(r);
-                testI = sampleI(range, range);
-                testG = sampleG(range, range);
-                switch self.repTypes(r)
-                  case 1
-                    resI = IrrDec.projectRealBlocks(testI, self.repDims(r), false, true);
-                    resG = IrrDec.projectRealBlocks(testG, self.repMuls(r), true, true);
-                  case 2
-                    resI = IrrDec.projectComplexBlocks(testI, self.repDims(r)/2, false, true);
-                    resG = IrrDec.projectComplexBlocks(testG, self.repMuls(r), true, true);
-                  case 3
-                    resI = IrrDec.projectQuaternionicBlocks(testI, self.repDims(r)/4, false, true);
-                    resG = IrrDec.projectQuaternionicBlocks(testG, self.repMuls(r), true, true);
-                end
-                assert(~isNonZeroMatrix(testI - resI, tol), 'Matrix that commutes with the group has not the proper form');
-                assert(~isNonZeroMatrix(testG - resG, tol), 'Group algebra matrix has not the proper form');
-            end
+            collected = false;
+            blocks = self.projectInIrrBasis(sampleI, collected, true);
+            testI = self.U*blkdiag(blocks{:})*self.U';
+            assert(~isNonZeroMatrix(testI - sampleI, tol), 'Matrix that commutes with the group has not the proper form');
+            % Checks correctness by sampling from the group algebra
+            sampleG = randn*GenPerm.orthogonalMatrix(self.group.randomElement) + randn*GenPerm.orthogonalMatrix(self.group.randomElement);
+            collected = true;
+            blocks = self.projectInIrrBasis(sampleG, collected, true);
+            testG = self.U*blkdiag(blocks{:})*self.U';
+            assert(~isNonZeroMatrix(testG - sampleG, tol), 'Group algebra matrix has not the proper form');
         end
+        
     end
 
     methods (Static)
@@ -254,7 +180,10 @@ classdef IrrDec < handle
         end
         
         function projected = projectComplexBlocks(block, nCopies, collected, preserveCopies)
-        % Project complex blocks
+        % Projects complex blocks, see projectRealBlocks for more info
+        % the block is made of 2x2 blocks of the form
+        % [r -i
+        %  i  r]
             nR = size(block, 1);
             nC = size(block, 2);
             assert(mod(nR, nCopies * 2) == 0);
@@ -293,6 +222,12 @@ classdef IrrDec < handle
         end
         
         function projected = projectQuaternionicBlocks(block, nCopies, collected, preserveCopies)
+        % Projects quaternionic blocks, see projectRealBlocks for more info
+        % the block is made of 4x4 blocks of the form
+        % [a -b -c -d
+        %  b  a -d  c
+        %  c  d  a -b
+        %  d -c  b  a]
             nR = size(block, 1);
             nC = size(block, 2);
             assert(mod(nR, nCopies * 4) == 0);
@@ -382,6 +317,7 @@ classdef IrrDec < handle
                 % compute a generic invariant sample (non-symmetric matrix), restricted to oOrbit x oOrbit
                 sample = basis*Random.realGaussian(realRank)*basis';
                 sample = resGroup.phaseConfiguration.project(sample); % project in the invariant subspace
+                assert(isreal(sample));
                 % Perform the Schur decomposition
                 [U T] = schur(sample, 'real');
                 % Get diagonal part = real part of eigenvalues
