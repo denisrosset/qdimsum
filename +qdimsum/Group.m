@@ -2,8 +2,8 @@
 classdef Group < handle
     
     properties (GetAccess = public, SetAccess = protected)
-        n = [];
-        generators = [];
+        n;
+        generators;
     end
     
     properties (Access = ?qdimsum.Group)
@@ -13,6 +13,7 @@ classdef Group < handle
         permOrbits_ = [];
         permOrbitRestrictions_ = [];
         phaseConfiguration_ = [];
+        randomBag_ = [];
     end
         
     methods
@@ -87,8 +88,14 @@ classdef Group < handle
             c = self.chain_;
         end
         
-        
         function r = randomElement(self)
+            if isequal(self.randomBag_, [])
+                self.randomBag_ = qdimsum.group.RandomBag(self.generators);
+            end
+            r = self.randomBag_.sample;
+        end
+        
+        function r = uniformRandomElement(self)
         % Returns a random group element chosen uniformly at random
             r = self.chain.random;
         end

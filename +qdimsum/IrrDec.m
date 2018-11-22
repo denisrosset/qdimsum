@@ -53,13 +53,125 @@ classdef IrrDec < handle
             I = IsoDec(self.group, self.fromOrbit, self.U, true, self.repDims, self.repMuls, self.settings);
         end
         
+        function M1 = project(self, M)
+            M1 = self.U*self.projectInIrrepBasis(M, true)*self.U';
+        end
+        
+        function M1 = projectInIrrepBasis(self, M, preserveCopies)
+        % Projects the matrix M in the invariant subspace, changing the basis of M from the basis on
+        % which the group acts to the basis that expresses the irreducible decomposition.
+        %
+        % preserveCopies determines whether we keep the copies of blocks when representations have dimension > 1
+            if nargin < 3
+                preserveCopies = true;
+            end
+            shift = 0;
+            nC = self.nComponents;
+            blocks = cell(1, nC);
+            for r = 1:nC
+                m = self.repMuls(r);
+                d = self.repDims(r);
+                switch self.repTypes(r)
+                  case 1 % REAL TYPE
+                    block = zeros(m, m);
+                    for i = 1:d % Average over blocks
+                        blockInd = shift + (i:d:m*d);
+                        block = block + self.U(:,blockInd)'*M*self.U(:,blockInd);
+                    end
+                    block = block/d;
+                    if preserveCopies
+                        block = kron(block, eye(d));
+                    end
+                  case 2 % COMPLEX TYPE
+                    % the block is made of 2x2 blocks of the form
+                    % [r -i
+                    %  i  r]
+                    R = zeros(m, m);
+                    I = zeros(m, m);
+                    Rmask = eye(2);
+                    Imask = [0 -1
+                             1  0];
+                    for i = 1:d/2 % Average over elements
+                        blockInd = shift + (i:2*d:m*d);
+                        R = R + self.U(:,blockInd)'*M*self.U(:,blockInd);
+                        R = R + self.U(:,blockInd+1)'*M*self.U(:,blockInd+1);
+                        I = I - self.U(:,blockInd)'*M*self.U(:,blockInd+1);
+                        I = I + self.U(:,blockInd+1)'*M*self.U(:,blockInd);
+                    end
+                    R = R/d;
+                    I = I/d;
+                    if preserveCopies
+                        R = kron(R, eye(d/2));
+                        I = kron(I, eye(d/2));
+                    end
+                    block = kron(R, Rmask) + kron(I, Imask);
+                  case 3 % QUATERNIONIC TYPE
+                    % the block is made of 4x4 blocks of the form
+                    % [a -b -c -d
+                    %  b  a -d  c
+                    %  c  d  a -b
+                    %  d -c  b  a]
+                    A = zeros(m, m);
+                    B = zeros(m, m);
+                    C = zeros(m, m);
+                    D = zeros(m, m);
+                    Amask = eye(4);
+                    Bmask = [0 -1  0  0
+                             1  0  0  0
+                             0  0  0 -1
+                             0  0  1  0];
+                    Cmask = [0  0 -1  0
+                             0  0  0  1
+                             1  0  0  0
+                             0 -1  0  0];
+                    Dmask = [0  0  0 -1
+                             0  0 -1  0
+                             0  1  0  0
+                             1  0  0  0];
+                    for i = 1:d/4 % Average over elements
+                        I = shift + (i:4*d:m*d);
+                        A = A + self.U(:,I)'  *M*self.U(:,I);
+                        A = A + self.U(:,I+1)'*M*self.U(:,I+1);
+                        A = A + self.U(:,I+2)'*M*self.U(:,I+2);
+                        A = A + self.U(:,I+3)'*M*self.U(:,I+3);
+                        B = B - self.U(:,I)'  *M*self.U(:,I+1);
+                        B = B + self.U(:,I+1)'*M*self.U(:,I);
+                        B = B - self.U(:,I+2)'*M*self.U(:,I+3);
+                        B = B + self.U(:,I+3)'*M*self.U(:,I+2);
+                        C = C - self.U(:,I)'  *M*self.U(:,I+2);
+                        C = C + self.U(:,I+1)'*M*self.U(:,I+3);
+                        C = C + self.U(:,I+2)'*M*self.U(:,I);
+                        C = C - self.U(:,I+3)'*M*self.U(:,I+1);
+                        D = D - self.U(:,I)'  *M*self.U(:,I+3);
+                        D = D - self.U(:,I+1)'*M*self.U(:,I+2);
+                        D = D + self.U(:,I+2)'*M*self.U(:,I+1);
+                        D = D + self.U(:,I+3)'*M*self.U(:,I);
+                    end
+                    A = A / d;
+                    B = B / d;
+                    C = C / d;
+                    D = D / d;
+                    if preserveCopies
+                        A = kron(A, eye(d/4));
+                        B = kron(B, eye(d/4));
+                        C = kron(C, eye(d/4));
+                        D = kron(D, eye(d/4));
+                    end
+                    block = kron(A, Amask) + kron(B, Bmask) + kron(C, Cmask) + kron(D, Dmask);
+                end
+                blocks{r} = block;
+                shift = shift + m*d;
+            end
+            M1 = blkdiag(blocks{:});
+        end
+        
         function check(self)
         % Checks the validity of this irreducible decomposition
             import qdimsum.*
             % Perform isotypic checks
             self.toIsoDec.check;
             % TODO: irreducible checks
-            
+                        
         end
 
     end
@@ -72,7 +184,7 @@ classdef IrrDec < handle
         % Optimized for precision
             import qdimsum.*
             tol = iso.settings.blockDiagEigTol;
-            range = iso.repRange(r);
+            range = iso.compRange(r);
             d = iso.repDims(r);
             m = iso.repMuls(r);
             newU = iso.U;
@@ -89,23 +201,32 @@ classdef IrrDec < handle
                 % basis for the r-th representation in the o-th orbit
                 basis = iso.U(oOrbit, basisInd);
                 % compute a generic invariant sample (non-symmetric matrix), restricted to oOrbit x oOrbit
-                sample = basis*Random.realGaussian(length(basisInd))*basis';
+                sample = basis*Random.realGaussian(realRank)*basis';
                 sample = resGroup.phaseConfiguration.project(sample); % project in the invariant subspace
-                [U T] = schur(sample);
+                % Perform the Schur decomposition
+                [U T] = schur(sample, 'real');
+                % Get diagonal part = real part of eigenvalues
                 D = diag(T);
+                % Find non zero eigenvalues => part of the isotypic component
                 nzInd = find(abs(D) > tol);
+                % Find the zero eigenvalues => part of the null space
                 zInd = find(abs(D) <= tol);
+                % Cluster eigenvalues by reordering the Schur blocks
                 clusters = zeros(1, n);
+                % Put null space last
                 clusters(zInd) = 1;
+                % Find similar eigenvalues
                 nzD = D(nzInd(1:2:end));
                 distD = abs(bsxfun(@minus, nzD, nzD'));
                 maskD = distD <= tol;
                 conD = findConnectedComponents(maskD);
+                % If the rank is not saturated, we have a quaternionic representation
                 if length(conD) * 2 ~= realRank
                     % wrong rank found, it is a quaternionic representation
                     refinedBasis = [];
                     return
                 end
+                % Group similar eigenvalues
                 for i = 1:length(conD)
                     compD1 = nzInd(conD{i}*2-1);
                     compD2 = nzInd(conD{i}*2);
@@ -113,9 +234,10 @@ classdef IrrDec < handle
                     clusters(compD1) = i + 1;
                     clusters(compD2) = i + 1;
                 end
+                % Reorder
                 [US TS] = ordschur(U, T, clusters);
-                % force blocks corresponding to the same complex eigenvalue to express it
-                % the same way
+                % Force blocks corresponding to the same complex eigenvalue to express it the same way
+                % by removing the degeneracy due to conjugation
                 start = 1;
                 b = 1;
                 for i = 1:m
@@ -130,11 +252,13 @@ classdef IrrDec < handle
                     end
                     start = b;
                 end
+                % Refined reordered basis is found
                 refinedBasis(oOrbit, orbitsForRange == o) = US(:, 1:realRank);
             end
         end
         
     end
+    
     methods (Static)
         
         function I = fromIsoDec(iso)
@@ -142,20 +266,21 @@ classdef IrrDec < handle
             import qdimsum.*
             sample = iso.group.phaseConfiguration.sampleRealGaussian;
             U = iso.U;
-            repTypes = zeros(1, iso.nReps);
-            for r = 1:iso.nReps
+            repTypes = zeros(1, iso.nComponents);
+            for r = 1:iso.nComponents
                 d = iso.repDims(r);
                 m = iso.repMuls(r);
-                range = iso.repRange(r);
+                range = iso.compRange(r);
                 if iso.repIsReal(r)
                     % use a second sample to put all irreducible components in the same basis
                     if iso.ordered
                         Urep = U(:, range);
                     else
-                        Urep = iso.refinedRepresentationBasis(r);
+                        Urep = iso.refinedBasis(r);
                     end
                     % only need the first row of blocks
                     repSample = Urep(:, 1:d)'*(sample + sample')*Urep;
+                    % constructing the change of basis matrices
                     P = cell(1, m);
                     P{1} = eye(d);
                     for j = 2:m
@@ -168,9 +293,11 @@ classdef IrrDec < handle
                 else
                     Urep = IrrDec.orderedComplexBasis(iso, r);
                     if isequal(Urep, [])
+                        % Quaternionic type
                         U(:, range) = NaN;
                         repTypes(r) = 3;
                     else
+                        % Complex type
                         repSample = Urep(:, 1:d)'*sample*Urep;
                         P = cell(1, m);
                         P{1} = eye(d);

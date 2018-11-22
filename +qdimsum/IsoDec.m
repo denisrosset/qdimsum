@@ -37,28 +37,28 @@ classdef IsoDec < handle
             end
         end
 
-        function n = nReps(self)
+        function n = nComponents(self)
         % Number of isotypic components
             n = length(self.compDims);
         end
         
-        function R = repRange(self, r)
-        % Indices corresponding to the r-th representation
+        function R = compRange(self, r)
+        % Indices corresponding to the r-th isotypic component
         % Correspond to columns of U, and to indices in fromOrbit
             from = sum(self.compDims(1:r-1)) + 1;
             to = sum(self.compDims(1:r));
             R = from:to;
         end
         
-        function Urep = repBasis(self, r)
-        % Returns the basis of the r-th isotypic components
-            Urep = self.U(:, self.repRange(r));
+        function Urep = compBasis(self, r)
+        % Returns the basis of the r-th isotypic component
+            Urep = self.U(:, self.compRange(r));
         end
         
-        function refinedBasis = refinedRepresentationBasis(self, r)
+        function refinedBasis = refinedBasis(self, r)
         % Returns the refined basis elements for the r-th representation
             import qdimsum.*
-            range = self.repRange(r); % basis indices
+            range = self.compRange(r); % basis indices
             orbits = self.fromOrbit(range); % orbits present in that component
             n = self.group.n;
             refinedBasis = zeros(n, length(range));
@@ -89,16 +89,16 @@ classdef IsoDec < handle
         % components, so that I.ordered = true.
             import qdimsum.*
             U = self.U;
-            for r = 1:self.nReps % refine each isotypic component
-                range = self.repRange(r);
-                U(:, range) = self.refinedRepresentationBasis(r);
+            for r = 1:self.nComponents % refine each isotypic component
+                range = self.compRange(r);
+                U(:, range) = self.refinedBasis(r);
             end
             I = IsoDec(self.group, self.fromOrbit, U, true, self.repDims, self.repMuls, self.settings);
         end
         
         function o = smallestOrbitInRep(self, r)
         % Returns the smallest orbit present in the r-th representation
-            range = self.repRange(r);
+            range = self.compRange(r);
             % need only to consider one orbit
             orbits = self.fromOrbit(range);
             O = unique(orbits(:));
@@ -115,7 +115,7 @@ classdef IsoDec < handle
             tol = self.settings.blockDiagEigTol;
             % Find smallest group orbit to perform the test in
             o = self.smallestOrbitInRep(r);
-            range = self.repRange(r);
+            range = self.compRange(r);
             % Full orbit, can include other representations, used to select the
             % phase configuration to be sampled
             fullOrbit = self.group.permOrbits.orbits{o};
@@ -159,10 +159,10 @@ classdef IsoDec < handle
             % a sample from matrices that commute with the group
             sample = self.group.phaseConfiguration.sampleRealGaussian;
             sample = self.U'*sample*self.U;
-            for i = 1:self.nReps
-                ir = self.repRange(i);
-                for j = 1:self.nReps
-                    jr = self.repRange(j);
+            for i = 1:self.nComponents
+                ir = self.compRange(i);
+                for j = 1:self.nComponents
+                    jr = self.compRange(j);
                     block = sample(ir, jr);
                     assert(isNonZeroMatrix(block, tol) == (i == j));
                 end
@@ -171,10 +171,10 @@ classdef IsoDec < handle
             M1 = self.U'*GenPerm.orthogonalMatrix(self.group.randomElement)*self.U;
             M2 = self.U'*GenPerm.orthogonalMatrix(self.group.randomElement)*self.U;
             M = randn * M1 + randn * M2;
-            for i = 1:self.nReps
-                ir = self.repRange(i);
-                for j = 1:self.nReps
-                    jr = self.repRange(j);
+            for i = 1:self.nComponents
+                ir = self.compRange(i);
+                for j = 1:self.nComponents
+                    jr = self.compRange(j);
                     % standard check
                     block = M(ir, jr);
                     assert(isNonZeroMatrix(block, tol) == (i == j));
