@@ -62,7 +62,7 @@ classdef IsoDec < handle
             orbits = self.fromOrbit(range); % orbits present in that component
             n = self.group.n;
             refinedBasis = zeros(n, length(range));
-            for o = 1:unique(orbits) % refine orbits individually
+            for o = unique(orbits) % refine orbits individually
                 basisInd = range(orbits == o); % basis elements we refine
                 n = length(basisInd);
                 % the o-th orbit elements
@@ -76,10 +76,8 @@ classdef IsoDec < handle
                 T = T + T'; % force symmetry
                 T = resGroup.phaseConfiguration.project(T); % project in the invariant subspace
                                                             % compute eigenvalues, the n largest eigenvalues correspond to the representation basis
-                [refinedBasis, lambda] = sortedEig(T, 'descend', true);
-                lambda = diag(lambda);
-                refinedBasis = refinedBasis(:, 1:n); % cuts the possible additional eigenvectors
-                refinedBasis(oOrbit, orbits == o) = refinedBasis; % replace basis
+                [U, ~] = sortedEig(T, 'descend', true);
+                refinedBasis(oOrbit, orbits == o) = U(:, 1:n); % replace basis cutting the possible additional eigenvectors
             end
         end
         

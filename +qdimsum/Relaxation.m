@@ -9,6 +9,8 @@ classdef Relaxation < handle
     
     properties (Access = protected)
         monomialsGroup_ = [];         % Group acting on monomials
+        monomialsIsoDec_ = [];
+        monomialsIrrDec_ = [];
     end
     
     methods
@@ -23,30 +25,48 @@ classdef Relaxation < handle
         % and NVSettings
         %
         % TODO: bring help text from nvOptimize
+            if nargin < 3
+                settings = NVSettings;
+            end
             self.problem = problem;
             self.monomials = monomials;
             self.operatorsGroup = qdimsum.Group(problem.symmetryGroupGenerators);
             self.settings = settings;
-        end
-
-        function h = monomialAction(self, g)
-        % For a generalized permutation "g" on the operator variables, returns
-        % the corresponding generalized permutation "h" on the monomials
-            import qdimsum.*
-            h = Monomials.findMonomialAction(self.problem, self.monomials.indices, g, self.settings);
         end
         
         function G = monomialsGroup(self)
         % Returns the group action on monomials
             import qdimsum.*
             if isequal(self.monomialsGroup_, [])
-                self.monomialsGroup_ = self.operatorsGroup.monomorphism(@(g) self.monomialAction(g));
+                self.monomialsGroup_ = self.operatorsGroup.monomorphism(@(g) self.monomials.action(g));
             end
             G = self.monomialsGroup_;
         end
+        
+        function I = monomialsIsoDec(self)
+        % Returns the isotypic decomposition of the monomial action group
+            import qdimsum.*
+            if isequal(self.monomialsIsoDec_, [])
+                if self.settings.blockDiagRefine
+                    self.monomialsIsoDec_ = IsoDec.forGroup(self.monomialsGroup).refine;
+                else
+                    self.monomialsIsoDec_ = IsoDec.forGroup(self.monomialsGroup);
+                end
+            end
+            I = self.monomialsIsoDec_;
+        end
+        
+        function I = monomialsIrrDec(self)
+        % Returns the irreducible decomposition of the monomial action group
+            import qdimsum.*
+            if isequal(self.monomialsIrrDec_, [])
+                self.monomialsIrrDec_ = IrrDec.fromIsoDec(self.monomialsIsoDec);
+            end
+            I = self.monomialsIsoDec_;
+        end
 
         function [chi obj] = sample(self)
-        % Returns a sample
+        % Returns a sample of the moment matrix
             X = self.problem.sampleOperators;
             K = self.problem.sampleStateKraus;
             monos = self.monomials.computeKraus(X, K);
@@ -62,7 +82,7 @@ classdef Relaxation < handle
         end
         
         function [chi obj] = symmetrizedSample(self)
-        % Returns a sample symmetrized under the symmetry group
+        % Returns a sample projected in the invariant subspace
             import qdimsum.*
             [chi obj] = self.sample;
             chi = self.monomialsGroup.phaseConfiguration.project(chi);

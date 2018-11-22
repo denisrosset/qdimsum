@@ -68,7 +68,7 @@ classdef PhaseConfiguration
 
         function s = getOrbitAverage(self, M, o)
             linIndices = self.orbitInd(self.orbitStart(o):self.orbitStart(o+1)-1);
-            s = M(linIndices)' * conj(self.phase(linIndices))/self.orbitSize(o);
+            s = dot(M(linIndices), conj(self.phase(linIndices))/self.orbitSize(o));
         end
         
         function M = setOrbit(self, M, o, s)
@@ -209,6 +209,7 @@ classdef PhaseConfiguration
         function C = fromGenPermJava(generators)
             import qdimsum.group.*;
             n = size(generators, 2);
+            assert(n > 0, 'Java code does not work with empty array, as Matlab will pass a null pointer.');
             % convert 1-based indices to 0-based indices
             generators(generators > 0) = generators(generators > 0) - 1;
             B = com.faacets.qdimsum.PhaseConfigurationBuilder.fromGenPerm(n, generators);
@@ -218,7 +219,11 @@ classdef PhaseConfiguration
         
         function C = fromGenPerm(generators)
             if exist('com.faacets.qdimsum.PhaseConfigurationBuilder')
-                C = qdimsum.group.PhaseConfiguration.fromGenPermJava(generators);
+                if size(generators, 1) > 0
+                    C = qdimsum.group.PhaseConfiguration.fromGenPermJava(generators);
+                else
+                    C = qdimsum.group.PhaseConfiguration.fromGenPermMatlab(generators);
+                end
             else
                 warning('Warning: qdimsum.jar not in the Java path, using Matlab code as fallback.');
                 C = qdimsum.group.PhaseConfiguration.fromGenPermMatlab(generators);

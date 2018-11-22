@@ -28,12 +28,26 @@ classdef IrrDec < handle
             self.compDims = repDims(:)' .* repMuls(:)';
             self.repTypes = repTypes(:)';
             self.settings = settings;
+            self.check;
         end
         
         function n = nComponents(self)
             n = length(self.compDims);
         end
         
+        function R = compRange(self, r)
+        % Indices corresponding to the r-th isotypic component
+        % Correspond to columns of U, and to indices in fromOrbit
+            from = sum(self.compDims(1:r-1)) + 1;
+            to = sum(self.compDims(1:r));
+            R = from:to;
+        end
+        
+        function Urep = compBasis(self, r)
+        % Returns the basis of the r-th isotypic component
+            Urep = self.U(:, self.compRange(r));
+        end
+
         function perm = swap(self)
         % Returns the permutation that switches between the kron(A, id) and kron(id, B) forms
             shift = 0;
@@ -115,7 +129,10 @@ classdef IrrDec < handle
                     B = zeros(m, m);
                     C = zeros(m, m);
                     D = zeros(m, m);
-                    Amask = eye(4);
+                    Amask = [1  0  0  0
+                             0  1  0  0
+                             0  0  1  0
+                             0  0  0  1];
                     Bmask = [0 -1  0  0
                              1  0  0  0
                              0  0  0 -1
@@ -170,12 +187,174 @@ classdef IrrDec < handle
             import qdimsum.*
             % Perform isotypic checks
             self.toIsoDec.check;
-            % TODO: irreducible checks
-                        
+            tol = self.settings.blockDiagMatTol;
+            % Checks that the isotypic components are correct by considering
+            % a sample from matrices that commute with the group
+            sampleI = self.group.phaseConfiguration.sampleRealGaussian;
+            sampleI = self.U'*sampleI*self.U;
+            G1 = self.U'*GenPerm.orthogonalMatrix(self.group.randomElement)*self.U;
+            G2 = self.U'*GenPerm.orthogonalMatrix(self.group.randomElement)*self.U;
+            sampleG = randn * G1 + randn * G2;
+            for r = 1:self.nComponents
+                range = self.compRange(r);
+                testI = sampleI(range, range);
+                testG = sampleG(range, range);
+                switch self.repTypes(r)
+                  case 1
+                    resI = IrrDec.projectRealBlocks(testI, self.repDims(r), false, true);
+                    resG = IrrDec.projectRealBlocks(testG, self.repMuls(r), true, true);
+                  case 2
+                    resI = IrrDec.projectComplexBlocks(testI, self.repDims(r)/2, false, true);
+                    resG = IrrDec.projectComplexBlocks(testG, self.repMuls(r), true, true);
+                  case 3
+                    resI = IrrDec.projectQuaternionicBlocks(testI, self.repDims(r)/4, false, true);
+                    resG = IrrDec.projectQuaternionicBlocks(testG, self.repMuls(r), true, true);
+                end
+                assert(~isNonZeroMatrix(testI - resI, tol), 'Matrix that commutes with the group has not the proper form');
+                assert(~isNonZeroMatrix(testG - resG, tol), 'Group algebra matrix has not the proper form');
+            end
         end
-
     end
 
+    methods (Static)
+       
+        function projected = projectRealBlocks(block, nCopies, collected, preserveCopies)
+        % Projects a real type component of type I_nCopies (x) R(dR x dC)
+        %
+        % If collected = false, block is of the form kron(A, eye(nCopies))
+        % If collected = true, block is of the form kron(eye(nCopies), A)
+        %
+        % preserveCopies = false  => keep a single copy of the block
+        % preserveCopies = true   => restore the copies so that projected has the same size as block
+            nR = size(block, 1);
+            nC = size(block, 2);
+            assert(mod(nR, nCopies) == 0);
+            assert(mod(nC, nCopies) == 0);
+            dR = nR/nCopies; % block dimensions
+            dC = nC/nCopies;
+            projected = zeros(dR, dC);
+            for i = 1:nCopies
+                if collected
+                    IR = (i-1)*dR + (1:dR);
+                    IC = (i-1)*dC + (1:dC);
+                else
+                    IR = i:nCopies:nR;
+                    IC = i:nCopies:nC;
+                end
+                projected = projected + block(IR, IC);
+            end
+            projected = projected / nCopies;
+            if preserveCopies
+                if collected
+                    projected = kron(eye(nCopies), projected);
+                else
+                    projected = kron(projected, eye(nCopies));
+                end
+            end
+        end
+        
+        function projected = projectComplexBlocks(block, nCopies, collected, preserveCopies)
+        % Project complex blocks
+            nR = size(block, 1);
+            nC = size(block, 2);
+            assert(mod(nR, nCopies * 2) == 0);
+            assert(mod(nC, nCopies * 2) == 0);
+            dR = nR/nCopies/2; % complex dimension
+            dC = nC/nCopies/2;
+            R = zeros(dR, dC);
+            I = zeros(dR, dC);
+            for i = 1:nCopies
+                if collected
+                    IR = (i-1)*dR + (1:2:2*dR);
+                    IC = (i-1)*dC + (1:2:2*dC);
+                else
+                    IR = i:2*nCopies:nR;
+                    IC = i:2*nCopies:nC;
+                end
+                R = R + block(IR, IC) + block(IR+1, IC+1);
+                I = I - block(IR, IC+1) + block(IR+1, IC);
+            end
+            R = R / (nCopies * 2);
+            I = I / (nCopies * 2);
+            if preserveCopies
+                if collected
+                    R = kron(eye(nCopies), R);
+                    I = kron(eye(nCopies), I);
+                else
+                    R = kron(R, eye(nCopies));
+                    I = kron(I, eye(nCopies));
+                end
+            end
+            Rmask = [1  0
+                     0  1];
+            Imask = [0 -1
+                     1  0];
+            projected = kron(R, Rmask) + kron(I, Imask);
+        end
+        
+        function projected = projectQuaternionicBlocks(block, nCopies, collected, preserveCopies)
+            nR = size(block, 1);
+            nC = size(block, 2);
+            assert(mod(nR, nCopies * 4) == 0);
+            assert(mod(nC, nCopies * 4) == 0);
+            IR = 1:4:nR;
+            IC = 1:4:nC;
+            dR = nR/nCopies/4; % quaternionic dimension
+            dC = nC/nCopies/4;
+            A = zeros(dR, dC);
+            B = zeros(dR, dC);
+            C = zeros(dR, dC);
+            D = zeros(dR, dC);
+            for i = 1:nCopies
+                if collected
+                    IR = (i-1)*dR + (1:4:4*dR);
+                    IC = (i-1)*dC + (1:4:4*dC);
+                else
+                    IR = i:4*nCopies:nR;
+                    IC = i:4*nCopies:nC;
+                end
+                A =  block(IR   , IC    ) + block(IR + 1, IC + 1) + block(IR + 2, IC + 2) + block(IR + 3, IC + 3);
+                B = -block(IR   , IC + 1) + block(IR + 1, IC    ) - block(IR + 2, IC + 3) + block(IR + 3, IC + 2);
+                C = -block(IR   , IC + 2) + block(IR + 1, IC + 3) + block(IR + 2, IC    ) - block(IR + 3, IC + 1);
+                D = -block(IR   , IC + 3) - block(IR + 1, IC + 2) + block(IR + 2, IC + 1) + block(IR + 3, IC    );
+            end
+            A = A/(nCopies * 4);
+            B = B/(nCopies * 4);
+            C = C/(nCopies * 4);
+            D = D/(nCopies * 4);
+            if preserveCopies
+                if collected
+                    A = kron(eye(nCopies), A);
+                    B = kron(eye(nCopies), B);
+                    C = kron(eye(nCopies), C);
+                    D = kron(eye(nCopies), D);
+                else
+                    A = kron(A, eye(nCopies));
+                    B = kron(B, eye(nCopies));
+                    C = kron(C, eye(nCopies));
+                    D = kron(D, eye(nCopies));
+                end
+            end
+            Amask = [1  0  0  0
+                     0  1  0  0
+                     0  0  1  0
+                     0  0  0  1];
+            Bmask = [0 -1  0  0
+                     1  0  0  0
+                     0  0  0 -1
+                     0  0  1  0];
+            Cmask = [0  0 -1  0
+                     0  0  0  1
+                     1  0  0  0
+                     0 -1  0  0];
+            Dmask = [0  0  0 -1
+                     0  0 -1  0
+                     0  1  0  0
+                     1  0  0  0];
+            projected = kron(A, Amask) + kron(B, Bmask) + kron(C, Cmask) + kron(D, Dmask);
+        end
+        
+    end
     methods (Static)
         
         function refinedBasis = orderedComplexBasis(iso, r)

@@ -74,6 +74,11 @@ classdef Monomials
         end
 
         function monoGenPerms = action(self, opGenPerms)
+        % For a generalized permutation "g" on the operator variables, returns
+        % the corresponding generalized permutation "h" on the monomials
+        %
+        % Works also when opGenPerms contains multiple generalized
+        % permutations, one per row
             monoGenPerms = qdimsum.Monomials.findMonomialAction(self.problem, self.indices, opGenPerms, self.settings);
         end
         
@@ -94,16 +99,23 @@ classdef Monomials
         end
         
         function M = fromFamilies(problem, families, settings)
+            if nargin < 3
+                settings = NVSettings;
+            end            
             description = sprintf('Families %s', qdimsum.Monomials.printCellOfVec(families));
             indices = qdimsum.Monomials.families(problem, families, settings);
             M = qdimsum.Monomials(problem, indices, settings, description);
         end
         
+        % TODO: make protected when old code is removed
         function indices = npa(problem, level, settings)
         % NPA - a generator for a monomial basis that enumerates all products of bounded degree
         %
         % The maximal degree enumerated is given by "level", and the function removes duplicates.
             import qdimsum.*
+            if nargin < 3
+                settings = NVSettings;
+            end
             X = problem.sampleOperators;
             nOp = length(X);
             if level == 0
@@ -140,6 +152,9 @@ classdef Monomials
         % families  - Families of operators involved
         %             For example, the families AA AB BB would be written {[1 1] [1 2] [2 2]}
             import qdimsum.*
+            if nargin < 3
+                settings = NVSettings;
+            end
             indices = {};
             for i = 1:length(families)
                 newIndices = Monomials.indicesFromFamily(problem, families{i}, settings);
