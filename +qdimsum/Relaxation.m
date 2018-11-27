@@ -127,7 +127,7 @@ classdef Relaxation < handle
                 blocks{r} = (blocks{r} + blocks{r}')/2;
             end
         end
-        
+
         function chi = symmetrizedMomentMatrix(self, X, K)
         % Equivalent to the "reynolds" method
             import qdimsum.*
@@ -135,7 +135,7 @@ classdef Relaxation < handle
             chi = self.monomialsGroup.phaseConfiguration.project(chi);
             chi = (chi + chi')/2; % to cater for possible rounding errors
         end
-        
+
         function [vec blockSizes] = computeBasisElement(self, method, X, K)
         % Returns a realization of a moment matrix basis element, vectorized
         % 
@@ -155,7 +155,7 @@ classdef Relaxation < handle
             [vec blockSizes] = blocksToVec(blocks, true);
         end
 
-        function [samples objs] = computeBasis(self, method)
+        function [samples blockSizes objs] = computeRealization(self, method)
         % Computes an affine basis of samples
             import qdimsum.*
             X = self.problem.sampleOperators;
@@ -187,6 +187,6 @@ classdef Relaxation < handle
             samples = samples(:,1:r);
             objs = objs(1:r);
         end
-           
+
     end
 end
