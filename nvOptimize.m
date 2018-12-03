@@ -233,13 +233,7 @@ function [objMax data timings] = nvOptimize(problem, monomials, method, settings
         blockSizes = nMonomials;
         sampleDim = nMonomials*(nMonomials+1)/2;
     end
-    blockRanges = cell(1, length(blockSizes));
-    shift = 0;
-    for i = 1:length(blockSizes)
-        blockRanges{i} = shift + (1:blockSizes(i));
-        shift = shift + blockSizes(i);
-    end
-    blockStructure = BlockStructure(blockRanges);
+    blockStructure = BlockStructure(blockSizes);
     timings.blockDiagonalization = toc(start); 
     
     timings.sampling = 0;
@@ -362,7 +356,7 @@ function [objMax data timings] = nvOptimize(problem, monomials, method, settings
                    ['Failed test of linear dependence of the objective on the moment matrix. ' ...
                     'Increase the degree of monomials in the generating set.']);
         end
-        for i = 1:blockStructure.numBlocks
+        for i = 1:blockStructure.nBlocks
             vecRange = blockStructure.blockRange(i);
             n = blockStructure.blockSize(i);
             C = BlockStructure.vecToMat(samples(vecRange,1), n);

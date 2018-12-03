@@ -111,7 +111,7 @@ classdef GenPerm
 
 
         function v = vectorImage(gp, v)
-        % Image of a vector under a group element
+        % Image of a column vector under a group element
             v = v .* sign(gp(:));
             v(abs(gp)) = v;
         end

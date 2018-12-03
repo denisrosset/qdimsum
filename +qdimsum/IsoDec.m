@@ -1,9 +1,9 @@
-classdef IsoDec < handle
+classdef IsoDec < qdimsum.Dec
 % Isotypic decomposition of the natural action of a generalized permutation group
 %
 % The change of basis matrix is adapted to the orbits of the group
     
-    properties (GetAccess = public, SetAccess = protected)
+    properties (SetAccess = immutable)
         group;        % Generalized permutation group of which we decompose the natural representation
         fromOrbit;    % fromOrbit(i) is the index of orbit in group.orbit from which
                       % the basis vector U(:,i) comes from

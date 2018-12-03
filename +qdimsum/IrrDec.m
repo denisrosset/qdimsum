@@ -1,10 +1,10 @@
-classdef IrrDec < handle
+classdef IrrDec < qdimsum.Dec
 % Describes a decomposition of the group natural representation in irreducible representations
 % over the reals.
 %
 % TODO: it identifies but does not handle quaternionic representations.
     
-    properties (GetAccess = public, SetAccess = protected)
+    properties (SetAccess = immutable)
         group;        % Generalized permutation group of which we decompose the natural representation
         fromOrbit;    % fromOrbit(i) is the index of orbit in group.orbit from which
                       % the basis vector U(:,i) comes from

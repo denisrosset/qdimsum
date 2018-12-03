@@ -3,80 +3,106 @@
 classdef BlockStructure
     
     properties
-        ranges = {}; % nonoverlapping range of indices corresponding to blocks
-                     % for example, a matrix blkdiag([1 1 1; 1 1 1; 1 1 1], [1 1; 1 1], [1])
-                     % has ranges {1:3 4:5 6}
+        sizes = [];
+        colRanges = {}; % nonoverlapping range of indices corresponding to blocks
+                        % for example, a matrix blkdiag([1 1 1; 1 1 1; 1 1 1], [1 1; 1 1], [1])
+                        % has ranges {1:3 4:5 6}
     end
     
     methods
         
+        function self = BlockStructure(sizes)
         % Constructor using the given ranges (see property ranges above)
-        function self = BlockStructure(ranges)
-            self.ranges = ranges;
+            n = length(sizes);
+            colRanges = cell(1, n);
+            shift = 0;
+            for i = 1:n
+                colRanges{i} = shift + (1:sizes(i));
+                shift = shift + sizes(i);
+            end
+            self.sizes = sizes;
+            self.colRanges = colRanges;
         end
         
-        % Total complex vector space dimension of the block matrix
         function d = dimension(self)
+        % Total complex vector space dimension of the block matrix
             d = sum(arrayfun(@(x) x*(x+1)/2, self.blockSizes));
         end
         
-        % Packs a block diagional matrix in a complex vector
-        function vec = pack(self, mat)
+        function vec = packBlocks(self, blocks)
+        % Packs a blocks in a complex vector
             import qdimsum.*
             dims = self.blockDimensions;
             vec = zeros(1, sum(dims));
-            for i = 1:self.numBlocks
-                range = self.ranges{i};
+            for i = 1:self.nBlocks
+                block = blocks{i};
+                vec(self.blockRange(i)) = BlockStructure.matToVec(block);
+            end
+        end
+        
+        function vec = packMatrix(self, mat)
+        % Packs a block diagional matrix in a complex vector
+            import qdimsum.*
+            dims = self.blockDimensions;
+            vec = zeros(1, sum(dims));
+            for i = 1:self.nBlocks
+                range = self.colRanges{i};
                 block = mat(range, range);
                 vec(self.blockRange(i)) = BlockStructure.matToVec(block);
             end
         end
         
-        % Returns the (width/height) size of the i-th block
         function n = blockSize(self, i)
-            range = self.ranges{i};
+        % Returns the (width/height) size of the i-th block
+            range = self.colRanges{i};
             n = length(range);
         end
         
-        % Returns the complex vector space dimension of the i-th block
         function d = blockDimension(self, i)
+        % Returns the complex vector space dimension of the i-th block
             n = self.blockSize(i);
             d = n*(n+1)/2;
         end
         
+        function n = nBlocks(self)
         % Returns the number of blocks
-        function n = numBlocks(self)
-            n = length(self.ranges);
+            n = length(self.sizes);
         end
         
-        % Returns the block sizes
         function sizes = blockSizes(self)
-            sizes = arrayfun(@(i) self.blockSize(i), 1:self.numBlocks);
+        % Returns the block sizes
+            sizes = arrayfun(@(i) self.blockSize(i), 1:self.nBlocks);
         end
         
-        % Returns the complex vector dimension of all blocks
         function dims = blockDimensions(self)
-            dims = arrayfun(@(i) self.blockDimension(i), 1:self.numBlocks);
+        % Returns the complex vector dimension of all blocks
+            dims = arrayfun(@(i) self.blockDimension(i), 1:self.nBlocks);
         end
         
-        % Returns the range of indices in the packed vector corresponding to the i-th block
         function vecRange = blockRange(self, i)
+        % Returns the range of indices in the packed vector corresponding to the i-th block
             cumdims = [0 cumsum(self.blockDimensions)];
             vecRange = cumdims(i)+(1:self.blockDimension(i));
         end
         
-        % Extracts the i-th block from the packed vector
         function mat = extractBlock(self, vec, i)
+        % Extracts the i-th block from the packed vector
             import qdimsum.*
             data = vec(self.blockRange(i));
             mat = BlockStructure.vecToMat(data, self.blockSize(i));
         end
         
+        function mat = unpackMatrix(self, vec)
         % Extracts a block diagonal matrix from a packed vector
-        function mat = unpack(self, vec)
-            blocks = arrayfun(@(i) self.extractBlock(vec, i), 1:self.numBlocks, 'UniformOutput', false);
+            blocks = self.unpackBlocks(vec);
             mat = blkdiag(blocks{:});
         end
+        
+        function blocks = unpackBlocks(self, vec)
+        % Extracts the blocks of a block diagonal matrix from a packed vector
+            blocks = arrayfun(@(i) self.extractBlock(vec, i), 1:self.nBlocks, 'UniformOutput', false);
+        end
+        
     end
     
     methods (Static)

@@ -1,7 +1,7 @@
 % Group of generalized permutations
 classdef Group < handle
     
-    properties (GetAccess = public, SetAccess = protected)
+    properties (GetAccess = public, SetAccess = immutable)
         n;
         generators;
     end
@@ -60,7 +60,27 @@ classdef Group < handle
                 self.order_ = order;
             end
         end
-
+        
+        function E = allElements(self)
+        % Returns all the elements of this group as row vectors in a matrix
+            import qdimsum.*
+            D = self.decomposition;
+            S = cellfun(@(x) size(x, 1), D);
+            n = length(S);
+            E = [];
+            for i = 1:prod(S)
+                sub = cell(1, n);
+                [sub{:}] = ind2sub(S, i);
+                d = D{1};
+                u = d(sub{1}, :);
+                for j = 2:n
+                    d = D{j};
+                    u = GenPerm.compose(u, d(sub{j}, :));
+                end
+                E = [E; u];
+            end
+        end
+        
         function d = decomposition(self)
         % Computes a decomposition of the group
         % as a cell array of size m x 1, corresponding

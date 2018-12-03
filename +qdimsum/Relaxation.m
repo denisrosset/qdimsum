@@ -1,6 +1,6 @@
 classdef Relaxation < handle
     
-    properties (GetAccess = public, SetAccess = protected)
+    properties (GetAccess = public, SetAccess = immutable)
         problem = [];                 % NVProblem instance to solve
         monomials = {};               % Set of monomials to use
         operatorsGroup = [];          % Group acting on operator variables
@@ -136,7 +136,7 @@ classdef Relaxation < handle
             chi = (chi + chi')/2; % to cater for possible rounding errors
         end
 
-        function [vec blockSizes] = computeBasisElement(self, method, X, K)
+        function [vec bs] = computeBasisElement(self, method, X, K)
         % Returns a realization of a moment matrix basis element, vectorized
         % 
         % method can be none, reynolds, isotypic, irreps or blocks/fastest
@@ -146,16 +146,20 @@ classdef Relaxation < handle
               case 'none'
                 block = self.momentMatrix(X, K);
                 blocks = {block};
+                blockSizes = size(block, 1);
               case 'reynolds'
                 block = self.symmetrizedMomentMatrix(X, K); 
                 blocks = {block};
+                blockSizes = size(block, 1);
               otherwise
                 blocks = self.blockDiagMomentMatrix(method, X, K);
+                blockSizes = cellfun(@(x) size(x, 1), blocks);
             end
-            [vec blockSizes] = blocksToVec(blocks, true);
+            bs = BlockStructure(blockSizes);
+            vec = bs.packBlocks(blocks);
         end
 
-        function [samples blockSizes objs] = computeRealization(self, method)
+        function R = computeRealization(self, method)
         % Computes an affine basis of samples
             import qdimsum.*
             X = self.problem.sampleOperators;
@@ -186,6 +190,7 @@ classdef Relaxation < handle
             end
             samples = samples(:,1:r);
             objs = objs(1:r);
+            R = Realization(self, method, samples, blockSizes, objs);
         end
 
     end
