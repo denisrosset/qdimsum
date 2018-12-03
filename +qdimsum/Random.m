@@ -107,6 +107,21 @@ classdef Random
             rho = rho / trace(rho);
         end
         
+        function P = projectivePOVM(ranks)
+            import qdimsum.*
+            d = sum(ranks);
+            U = Random.unitary(d);
+            n = length(ranks);
+            P = cell(1, n);
+            shift = 0;
+            for i = 1:n
+                r = ranks(i);
+                D = [zeros(1, shift) ones(1, r) zeros(1, d-shift-r)];
+                P{i} = U*diag(D)*U';
+                shift = shift + r;
+            end
+        end
+        
     end
     
 end

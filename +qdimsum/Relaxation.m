@@ -13,6 +13,28 @@ classdef Relaxation < handle
         monomialsIrrDec_ = [];
     end
     
+    methods (Static)
+        
+        function R = npa(problem, level, settings)
+            import qdimsum.*
+            if nargin < 3
+                settings = NVSettings;
+            end
+            M = Monomials.fromNPA(problem, level, settings);
+            R = Relaxation(problem, monomials, settings);
+        end
+        
+        function R = families(problem, families, settings)
+            import qdimsum.*
+            if nargin < 3
+                settings = NVSettings;
+            end
+            M = Monomials.fromFamilies(problem, families, settings);
+            R = Relaxation(problem, monomials, settings);
+        end
+        
+    end
+    
     methods
     
         function n = nMonomials(self)
@@ -20,18 +42,29 @@ classdef Relaxation < handle
             n = length(self.monomials);
         end
         
-        function self = Relaxation(problem, monomials, settings)
-        % Creates a relaxation for the given problem (NVProblem), with the given monomials
-        % and NVSettings
+        function self = Relaxation(problem, monomials, settings, ...
+                                   monomialsGroup, monomialsIsoDec, monomialsIrrDec)
+        % Creates a relaxation for the given problem (NVProblem), with the given monomials and NVSettings
         %
+        % moomials
         % TODO: bring help text from nvOptimize
-            if nargin < 3
-                settings = NVSettings;
-            end
             self.problem = problem;
             self.monomials = monomials;
             self.operatorsGroup = qdimsum.Group(problem.symmetryGroupGenerators);
-            self.settings = settings;
+            if nargin >= 6 && ~isequal(monomialsIrrDec, [])
+                self.monomialsIrrDec_ = monomialsIrrDec;
+            end
+            if nargin >= 5 && ~isequal(monomialsIsoDec, [])
+                self.monomialsIsoDec_ = monomialsIsoDec;
+            end
+            if nargin >= 4 && ~isequal(monomialsGroup, [])
+                self.monomialsGroup_ = monomialsGroup;
+            end            
+            if nargin >= 3 && ~isequal(settings, [])
+                self.settings = settings;
+            else
+                self.settings = NVSettings;
+            end
         end
         
         function G = monomialsGroup(self)
@@ -182,7 +215,6 @@ classdef Relaxation < handle
                     samples(:, l) = vec;
                     objs(l) = self.problem.computeObjective(X, K);
                 end
-                l = l + chunkSize;
                 r = rank(samples);
                 if r < l
                     break

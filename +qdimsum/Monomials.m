@@ -41,7 +41,23 @@ classdef Monomials
         function n = length(self)
             n = length(self.indices);
         end
-               
+        
+        function monos = compute(self, X)
+            import qdimsum.*
+            dim = size(X{1}, 1);
+            monos = zeros(dim, dim, self.length);
+            for row = 1:size(self.program, 1)
+                target = self.program(row, 1);
+                op = self.program(row, 2);
+                source = self.program(row, 3);
+                if op == 0 || source == 0
+                    elements(:,:,target) = eye(dim);
+                else
+                    elements(:,:,target) = X{op} * elements(:,:,source);
+                end
+            end
+        end
+
         function elements = computeKraus(self, X, K)
         % Computes the Kraus elements used to generate the moment matrix
         % from a sample of operator variables X and Kraus state K
@@ -80,6 +96,19 @@ classdef Monomials
         % Works also when opGenPerms contains multiple generalized
         % permutations, one per row
             monoGenPerms = qdimsum.Monomials.findMonomialAction(self.problem, self.indices, opGenPerms, self.settings);
+        end
+        
+        function monoGenPerm = actionUsingSamples(self, opGenPerms, X)
+            import qdimsum.*
+            N = length(self.indices);
+            M = size(opGenPerms, 1);
+            monoGenPerm = zeros(M, N);
+            monoX = self.compute(X);
+            for i = 1:M
+                Y = GenPerm.operatorsImage(opGenPerm(i, :), X);
+                monoY = self.compute(Y);
+                monoGenPerm(i, :) = Monomials.findOperatorsImage(monoY, monoX, settings);
+            end
         end
         
     end

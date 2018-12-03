@@ -12,8 +12,8 @@ classdef SIC < NVProblem
     methods
         
         function self = SIC(N, d, rankVec)
-            self.d = d;
-            self.N = N;
+            self.d = d; % dimension
+            self.N = N; % problem size
             self.rankVec = rankVec;
             % y1 < y2
             self.Nys = N*(N-1)/2;
@@ -27,20 +27,19 @@ classdef SIC < NVProblem
         end
 
         function X = sampleOperators(self)
+            import qdimsum.*
             d = self.d;
             N = self.N;
             rho = cell(1, N);
             for x = 1:N
-                r = (2*rand(d,1)-1) + 1i*(2*rand(d,1)-1);
-                rho{x} = r*r';
-                rho{x} = rho{x}/norm(rho{x});
+                rho{x} = pureNormalizedDensityMatrix(d);
             end
             M = cell(1, self.Nys);
             for i = 1:self.Nys
                 r = self.rankVec(i + N);
                 D = diag([ones(1, r) -ones(1,d-r)]);
                 U = qdimsum.Random.unitary(d);
-                M{i} = U*D*U'; % need to specify "rank"
+                M{i} = U*D*U';
             end
             X = horzcat(rho, M);
         end
