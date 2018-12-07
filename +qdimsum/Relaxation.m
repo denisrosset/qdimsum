@@ -20,7 +20,7 @@ classdef Relaxation < handle
             if nargin < 3
                 settings = NVSettings;
             end
-            M = Monomials.fromNPA(problem, level, settings);
+            monomials = Monomials.fromNPA(problem, level, settings);
             R = Relaxation(problem, monomials, settings);
         end
         
@@ -29,7 +29,7 @@ classdef Relaxation < handle
             if nargin < 3
                 settings = NVSettings;
             end
-            M = Monomials.fromFamilies(problem, families, settings);
+            monomials = Monomials.fromFamilies(problem, families, settings);
             R = Relaxation(problem, monomials, settings);
         end
         
