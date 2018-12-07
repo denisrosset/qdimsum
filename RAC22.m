@@ -69,17 +69,17 @@ classdef RAC22 < NVProblem
     
     methods
         
-        function C = operatorSDPConstraints(self, X)
+        function C = implicitOperatorSDPConstraints(self, X)
             C = X; % all operators are SDP
         end
         
-        function C = operatorEqualityConstraints(self, X)
+        function C = implicitOperatorEqualityConstraints(self, X)
             dim = 2;
             C = {eye(dim) - X{5} - X{6}   % X{5}, X{6} form a projective measurement
                  eye(dim) - X{7} - X{8}}; % X{7}, X{8} form a projective measurement
         end
         
-        function C = scalarEqualityConstraints(self, X)
+        function C = implicitScalarEqualityConstraints(self, X)
             dim = 2;
             mm = eye(dim)/dim;
             C = {mm - X{1}

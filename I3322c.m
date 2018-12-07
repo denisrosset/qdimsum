@@ -34,7 +34,7 @@ classdef I3322c < NVProblem
             B{3} = X{6};
         end
         
-        function C = operatorSDPConstraints(self, X)
+        function C = implicitOperatorSDPConstraints(self, X)
             [A B] = self.unpack(X);
             d = self.d;
             id = eye(d*d);

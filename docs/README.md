@@ -221,17 +221,17 @@ Sanity checks
 In the options above, the setting `checkLevel` is set to `1` by default. Then, `QDimSum` will perform consistency checks at every step of the computation. Those checks are not expensive and should not be disabled without good reason. Moreover, one can help `QDimSum` in checking the user provided data by explaining to the toolbox the constraints that the operators have to satisfy.
 
 ```matlab
-        function C = operatorSDPConstraints(self, X)
+        function C = implicitOperatorSDPConstraints(self, X)
             C = X; % all operators are SDP
         end
-        function C = operatorEqualityConstraints(self, X)
+        function C = implicitOperatorEqualityConstraints(self, X)
             dim = 2;
             % X{5}, X{6} form a projective measurement
             % X{7}, X{8} form a projective measurement
             C = {eye(dim) - X{5} - X{6}
                  eye(dim) - X{7} - X{8}};
         end
-        function C = scalarEqualityConstraints(self, X)
+        function C = implicitScalarEqualityConstraints(self, X)
             dim = 2;
             mm = eye(dim)/dim; % states have the same
 			% trace as the maximally mixed state

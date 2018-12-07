@@ -92,7 +92,7 @@ classdef (Abstract) NVProblem < handle
         % The constraint is that C{i} >=sdp 0, for all i
         %
         % By default, no constraints are defined
-        function C = operatorSDPConstraints(self, X)
+        function C = implicitOperatorSDPConstraints(self, X)
             C = {};
         end
 
@@ -102,7 +102,7 @@ classdef (Abstract) NVProblem < handle
         % The constraint is that C{i} == 0, for all i
         %
         % By default, no constraints are defined
-        function C = operatorEqualityConstraints(self, X)
+        function C = implicitOperatorEqualityConstraints(self, X)
             C = {};
         end
         
@@ -111,7 +111,7 @@ classdef (Abstract) NVProblem < handle
         %
         % The constraint is that trace(C{i}*rho) == 0, for all i and all rho
         % given by 'sampleState'.
-        function C = scalarEqualityConstraints(self, X)
+        function C = implicitScalarEqualityConstraints(self, X)
             C = {};
         end
         
