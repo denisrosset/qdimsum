@@ -107,6 +107,22 @@ classdef Random
             rho = rho / trace(rho);
         end
         
+        function P = povm(N, d)
+            import qdimsum.*
+            P = cell(1, N);
+            S = zeros(d, d);
+            for i = 1:N
+                P{i} = Random.hermitianGaussian(d);
+                P{i} = P{i}'*P{i};
+                S = S + P{i};
+            end
+            C = inv(sqrtm(S));
+            for i = 1:N
+                P{i} = C'*P{i}*C;
+                P{i} = (P{i} + P{i}')/2;
+            end
+        end
+        
         function P = projectivePOVM(ranks)
             import qdimsum.*
             d = sum(ranks);
