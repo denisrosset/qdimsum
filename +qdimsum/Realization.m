@@ -22,7 +22,7 @@ classdef Realization
             self.objs = objs;
         end
         
-        function S = solveWithYalmip(self)
+        function [S time] = solveWithYalmip(self)
             import qdimsum.*
             r = self.rank;
             x = sdpvar(r - 1, 1);
@@ -42,7 +42,9 @@ classdef Realization
                 A = C + reshape(reshape(A, [d*d r-1]) * x, [d d]);
                 CONS = [CONS; A >= 0];
             end
+            tic;
             solvesdp(CONS, -obj);
+            time = toc;
             xx = zeros(r, 1);
             xx(2:end) = double(x);
             xx(1) = 1 - sum(xx(2:end));
