@@ -214,6 +214,37 @@ classdef GenPerm
             x(flip) = -x(flip);
         end
         
+        function p1 = toUnsigned(p)
+            n = length(p);
+            p1 = zeros(1, 2*n);
+            for k = 1:n
+                k1 = (k-1)*2 + 1;
+                i1 = (abs(p(k))-1)*2 + 1;
+                if p(k) > 0
+                    p1(k1) = i1;
+                    p1(k1+1) = i1+1;
+                else
+                    p1(k1) = i1+1;
+                    p1(k1+1) = i1;
+                end
+            end
+        end
+        
+        function c = directSum(a, b, varargin)
+        % Computes the direct sum of permutations
+            a = a(:)';
+            b = b(:)';
+            nA = length(a);
+            nB = length(b);
+            c = zeros(1, nA + nB);
+            c(nA+(1:nB)) = (nA + abs(b)).*sign(b);
+            c(1:nA) = a;
+            if length(varargin) > 0
+                c = qdimsum.GenPerm.directSum(c, varargin{1}, ...
+                                              varargin{2:end});
+            end
+        end
+        
     end
     
 end
