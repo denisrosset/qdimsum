@@ -141,8 +141,8 @@ classdef IsoDec < qdimsum.Dec
                 self.settings.blockDiagEigHist.register(distSym(maskSym));
             end
             % Connect close eigenvalues
-            conGen = Reps.findConnectedComponents(maskGen);
-            conSym = Reps.findConnectedComponents(maskSym);
+            conGen = Graph.findConnectedComponents(maskGen);
+            conSym = Graph.findConnectedComponents(maskSym);
             lenGen = cellfun(@(x) length(x), conGen);
             lenSym = cellfun(@(x) length(x), conSym);
             assert(all(lenGen == lenGen(1)));
@@ -267,7 +267,7 @@ classdef IsoDec < qdimsum.Dec
             % find the subspaces corresponding to the same irreducible representation
             % by looking at the connected components of the graph defined by the adjacency
             % matrix of the block mask
-            cc = findConnectedComponents(blockMask);
+            cc = Graph.findConnectedComponents(blockMask);
             Nc = length(cc);
             reps = zeros(2, Nc);
             for i = 1:Nc

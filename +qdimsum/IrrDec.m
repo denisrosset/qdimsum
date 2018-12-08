@@ -334,7 +334,7 @@ classdef IrrDec < qdimsum.Dec
                 nzD = D(nzInd(1:2:end));
                 distD = abs(bsxfun(@minus, nzD, nzD'));
                 maskD = distD <= tol;
-                conD = findConnectedComponents(maskD);
+                conD = Graph.findConnectedComponents(maskD);
                 % If the rank is not saturated, we have a quaternionic representation
                 if length(conD) * 2 ~= realRank
                     % wrong rank found, it is a quaternionic representation
